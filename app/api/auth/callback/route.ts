@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createSession } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { todoist } from "@/lib/todoist";
+import { runSync } from "@/app/api/sync/route";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -24,6 +25,7 @@ export async function GET(request: Request) {
      ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email,
      avatar=excluded.avatar,access_token=excluded.access_token`
   ).run(user.id, user.full_name, user.email || null, user.avatar_big || null, access_token);
+  try { await runSync(user.id); } catch { /* Login should still succeed if Todoist sync is temporarily unavailable. */ }
   const response = NextResponse.redirect(`${origin}/app`);
   response.cookies.set("ritual_session", await createSession(user.id), { httpOnly: true, secure: origin.startsWith("https"), sameSite: "lax", maxAge: 2592000 });
   response.cookies.delete("todoist_state");

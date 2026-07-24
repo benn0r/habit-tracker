@@ -28,7 +28,14 @@ export function getDb() {
       task_id TEXT NOT NULL, completed_at TEXT NOT NULL,
       completion_id TEXT NOT NULL, PRIMARY KEY (user_id, completion_id)
     );
+    CREATE TABLE IF NOT EXISTS sessions (
+      token_hash TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
     CREATE INDEX IF NOT EXISTS idx_completions_user_date ON completions(user_id, completed_at);
+    CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
   `);
   global.habitDb = db;
   return db;

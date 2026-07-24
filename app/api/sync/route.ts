@@ -62,7 +62,7 @@ async function activityCompletions(token: string, since: Date) {
   return output;
 }
 
-async function runSync(userId: string) {
+export async function runSync(userId: string) {
   const db = getDb();
   const user = db.prepare("SELECT access_token FROM users WHERE id=?").get(userId) as { access_token: string } | undefined;
   if (!user) throw new Error("User not found");
