@@ -11,7 +11,8 @@ type Completion = { task_id: string; completed_at: string };
 type Data = { user: { name: string; email: string; avatar?: string; last_sync?: string }; habits: Habit[]; completions: Completion[] };
 type Day = { date: Date; key: string; state: "done" | "miss" | "none" | "future" };
 
-const keyOf = (date: Date) => date.toISOString().slice(0, 10);
+const keyOf = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
 function scheduleLabel(h: Habit) {

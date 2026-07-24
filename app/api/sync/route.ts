@@ -12,6 +12,23 @@ type Completed = {
   id?: string; task_id?: string; content?: string; completed_at: string;
 };
 
+async function completedForYear(token: string, since: Date, until: Date) {
+  const all: Completed[] = [];
+  let windowStart = new Date(since);
+  while (windowStart < until) {
+    const windowEnd = new Date(windowStart);
+    windowEnd.setDate(windowEnd.getDate() + 89);
+    if (windowEnd > until) windowEnd.setTime(until.getTime());
+    all.push(...await paged<Completed>(
+      `/tasks/completed/by_completion_date?since=${encodeURIComponent(windowStart.toISOString())}&until=${encodeURIComponent(windowEnd.toISOString())}&limit=200`,
+      token,
+      "items"
+    ));
+    windowStart = windowEnd;
+  }
+  return all;
+}
+
 async function runSync(userId: string) {
   const db = getDb();
   const user = db.prepare("SELECT access_token FROM users WHERE id=?").get(userId) as { access_token: string } | undefined;
@@ -42,10 +59,7 @@ async function runSync(userId: string) {
 
   const since = new Date(); since.setFullYear(since.getFullYear() - 1); since.setDate(since.getDate() - 7);
   const until = new Date(); until.setDate(until.getDate() + 1);
-  const completed = await paged<Completed>(
-    `/tasks/completed/by_completion_date?since=${encodeURIComponent(since.toISOString())}&until=${encodeURIComponent(until.toISOString())}&limit=200`,
-    token
-  );
+  const completed = await completedForYear(token, since, until);
   const known = new Map<string, string>();
   habits.forEach((h) => known.set(h.content.trim().toLowerCase(), h.id));
   const insertCompletion = db.prepare(
@@ -53,10 +67,13 @@ async function runSync(userId: string) {
      ON CONFLICT(user_id,completion_id) DO NOTHING`
   );
   const saveCompletions = db.transaction((items: Completed[]) => {
+    db.prepare("DELETE FROM completions WHERE user_id=? AND completed_at>=?").run(userId, since.toISOString());
     for (const item of items) {
-      const taskId = item.task_id || (item.content ? known.get(item.content.trim().toLowerCase()) : undefined);
+      const taskId = item.task_id
+        || (item.id && habits.some((h) => h.id === item.id) ? item.id : undefined)
+        || (item.content ? known.get(item.content.trim().toLowerCase()) : undefined);
       if (!taskId || !habits.some((h) => h.id === taskId)) continue;
-      insertCompletion.run(userId, taskId, item.completed_at, item.id || `${taskId}:${item.completed_at}`);
+      insertCompletion.run(userId, taskId, item.completed_at, `${taskId}:${item.completed_at}`);
     }
   });
   saveCompletions(completed);

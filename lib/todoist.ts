@@ -10,15 +10,17 @@ async function todoist<T>(path: string, token: string, options?: RequestInit): P
   return response.json();
 }
 
-export async function paged<T>(path: string, token: string) {
+export async function paged<T>(path: string, token: string, collectionKey = "results") {
   const output: T[] = [];
   let cursor: string | null = null;
   do {
     const separator = path.includes("?") ? "&" : "?";
-    const data: { results: T[]; next_cursor?: string } = await todoist<{ results: T[]; next_cursor?: string }>(
+    const data: Record<string, unknown> & { next_cursor?: string } = await todoist<Record<string, unknown> & { next_cursor?: string }>(
       `${path}${cursor ? `${separator}cursor=${encodeURIComponent(cursor)}` : ""}`, token
     );
-    output.push(...(data.results || []));
+    const items = data[collectionKey];
+    if (!Array.isArray(items)) throw new Error(`Todoist response did not contain "${collectionKey}"`);
+    output.push(...(items as T[]));
     cursor = data.next_cursor || null;
   } while (cursor);
   return output;
