@@ -12,6 +12,7 @@ a { color:inherit; text-decoration:none }
 .button.primary { background:var(--red); color:#fff; box-shadow:0 8px 20px #e95d4530 }
 .button.ghost { background:transparent; border:1px solid #9d9c94 }
 .button.compact { font-size:13px; padding:10px 14px }
+.adjust-rhythm{background:#fffdf8!important;border-color:#b8b9b0!important;color:#40554b;box-shadow:0 2px 8px #26352e0a;transition:border-color .15s,background .15s,transform .15s}.adjust-rhythm:hover{background:#eef2e9!important;border-color:var(--green)!important;transform:translateY(-1px)}.adjust-rhythm svg{width:16px;height:16px;fill:currentColor}
 .nav { height:76px; max-width:1180px; margin:auto; display:flex; align-items:center; justify-content:space-between; padding:0 28px }
 .landing { min-height:100vh; background:radial-gradient(circle at 76% 23%,#dce5d7 0,transparent 31%), var(--paper) }
 .hero { max-width:800px; margin:85px auto 55px; padding:0 28px; text-align:center }
