@@ -78,8 +78,20 @@ export default function Dashboard() {
   const [settings, setSettings] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [view, setView] = useState<View>("heatmap");
-  const load = () => fetch("/api/dashboard").then((r) => r.json()).then((d) => { setData(d); setSelected((s) => s || d.habits?.[0]?.task_id || ""); });
+  const load = () => fetch("/api/dashboard").then((r) => r.json()).then((d) => {
+    setData(d);
+    setSelected((current) => {
+      const requested = new URLSearchParams(window.location.search).get("habit");
+      return current || (d.habits?.some((h: Habit) => h.task_id === requested) ? requested : d.habits?.[0]?.task_id) || "";
+    });
+  });
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (!selected) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("habit", selected);
+    window.history.replaceState({}, "", url);
+  }, [selected]);
   const habit = data?.habits.find((h) => h.task_id === selected);
   const periods = useMemo(() => habit && data ? buildPeriods(habit, data.completions) : [], [habit, data]);
   const rhythm = habit ? rhythmFor(habit) : { type: "daily" as const, count: 1 };
@@ -118,6 +130,9 @@ export default function Dashboard() {
     });
     await load(); setSettings(false);
   }
+  const scheduleIs = (type: string, count?: number) =>
+    type === "todoist" ? !habit?.override_type :
+    habit?.override_type === type && (count === undefined || habit.override_count === count);
 
   if (!data) return <div className="loading"><span className="brandmark">H</span><p>Reading your habits…</p></div>;
   const initials = data.user.name.split(" ").map((x) => x[0]).join("").slice(0, 2);
@@ -166,7 +181,7 @@ export default function Dashboard() {
           <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"} · Read-only Todoist access</p>
         </> : <div className="empty"><span>✓</span><h1>No habits found yet</h1><p>Add the <code>@habit</code> label to a recurring Todoist task, then sync.</p><button className="button primary" onClick={sync}>Sync Todoist</button></div>}
       </section>
-      {settings && habit && <div className="modal-bg" onMouseDown={() => setSettings(false)}><div className="modal" onMouseDown={(e) => e.stopPropagation()}><button className="close" onClick={() => setSettings(false)}>×</button><div className="eyebrow"><span /> OVERRIDE SCHEDULE</div><h2>What’s the real rhythm?</h2><p>Habit Tracker will use this to judge completions. Nothing changes in Todoist.</p><div className="choices"><button onClick={() => saveSchedule("todoist")}><strong>Use Todoist schedule</strong><small>{habit.todoist_recurrence || "No recurring due date"}</small></button><button onClick={() => saveSchedule("daily")}><strong>Every day</strong><small>One completion each day</small></button><button onClick={() => saveSchedule("interval", 2)}><strong>Every two days</strong><small>Flexible alternating rhythm</small></button>{[1, 2, 3, 4, 5, 6, 7].map((count) => <button key={count} onClick={() => saveSchedule("weekly", count)}><strong>{count} {count === 1 ? "time" : "times"} a week</strong><small>Any {count === 1 ? "day" : `${count} days`}, Monday–Sunday</small></button>)}</div></div></div>}
+      {settings && habit && <div className="modal-bg" onMouseDown={() => setSettings(false)}><div className="modal" onMouseDown={(e) => e.stopPropagation()}><button className="close" onClick={() => setSettings(false)}>×</button><div className="eyebrow"><span /> OVERRIDE SCHEDULE</div><h2>What’s the real rhythm?</h2><p>Habit Tracker will use this to judge completions. Nothing changes in Todoist.</p><div className="choices primary-choices"><button className={scheduleIs("todoist") ? "selected" : ""} onClick={() => saveSchedule("todoist")}><i>↻</i><span><strong>Use Todoist schedule</strong><small>{habit.todoist_recurrence || "No recurring due date"}</small></span><b>✓</b></button><button className={scheduleIs("daily") ? "selected" : ""} onClick={() => saveSchedule("daily")}><i>1d</i><span><strong>Every day</strong><small>One completion each day</small></span><b>✓</b></button><button className={scheduleIs("interval", 2) ? "selected" : ""} onClick={() => saveSchedule("interval", 2)}><i>2d</i><span><strong>Every two days</strong><small>One completion per two-day period</small></span><b>✓</b></button></div><div className="weekly-heading"><strong>Times per week</strong><small>Any days, Monday–Sunday</small></div><div className="weekly-choices">{[1, 2, 3, 4, 5, 6, 7].map((count) => <button className={scheduleIs("weekly", count) ? "selected" : ""} key={count} onClick={() => saveSchedule("weekly", count)}><strong>{count}</strong><small>×</small></button>)}</div></div></div>}
     </main>
   );
 }
