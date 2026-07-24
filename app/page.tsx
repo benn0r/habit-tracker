@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 const sample = Array.from({ length: 63 }, (_, i) => i % 11 === 0 ? "miss" : i % 5 === 0 ? "soft" : i > 56 ? "none" : "done");
 
 export default function Home() {
