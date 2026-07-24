@@ -20,7 +20,16 @@ A Todoist-powered habit tracker. Ritual discovers tasks tagged `habit`, imports 
 
 ## Coolify
 
-Deploy this repository as a Docker Compose resource. Set every value from `.env.example`, and set `APP_URL` to the public HTTPS URL. In the Todoist App Management Console, add:
+Gitea Actions validates every change and publishes a Docker image for each
+pushed branch to `git.example.com/example-user/habit-tracker`. The `main` branch is
+published as `git.example.com/example-user/habit-tracker:main`; obsolete branch
+images are removed automatically. Add a repository Actions secret named
+`REGISTRY_TOKEN` containing a Gitea token with package read/write permission.
+
+Deploy the `:main` image as a Docker Image application, expose port `3000`, and
+configure the health check as `GET /api/health`. Add a standalone PostgreSQL
+database and set every application value from `.env.example`, with `APP_URL`
+set to the public HTTPS URL. In the Todoist App Management Console, add:
 
 `https://YOUR_DOMAIN/api/auth/callback`
 
