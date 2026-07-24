@@ -16,6 +16,7 @@ type Period = {
 };
 type Rhythm = { type: "daily" | "interval" | "weekly"; count: number };
 type View = "heatmap" | "trend" | "history";
+const ALL_HABITS = "all";
 
 const keyOf = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -82,7 +83,7 @@ export default function Dashboard() {
     setData(d);
     setSelected((current) => {
       const requested = new URLSearchParams(window.location.search).get("habit");
-      return current || (d.habits?.some((h: Habit) => h.task_id === requested) ? requested : d.habits?.[0]?.task_id) || "";
+      return current || (requested && (requested === ALL_HABITS || d.habits?.some((h: Habit) => h.task_id === requested)) ? requested : ALL_HABITS);
     });
   });
   useEffect(() => { load(); }, []);
@@ -93,6 +94,7 @@ export default function Dashboard() {
     window.history.replaceState({}, "", url);
   }, [selected]);
   const habit = data?.habits.find((h) => h.task_id === selected);
+  const isOverview = selected === ALL_HABITS;
   const periods = useMemo(() => habit && data ? buildPeriods(habit, data.completions) : [], [habit, data]);
   const rhythm = habit ? rhythmFor(habit) : { type: "daily" as const, count: 1 };
   const elapsed = periods.filter((d) => d.state !== "future");
@@ -115,6 +117,26 @@ export default function Dashboard() {
     }
     return result.slice(-12);
   }, [elapsed]);
+  const summaries = useMemo(() => data?.habits.map((item) => {
+    const itemPeriods = buildPeriods(item, data.completions);
+    const itemElapsed = itemPeriods.filter((period) => period.state !== "future");
+    const hits = itemElapsed.filter((period) => period.state === "done").length;
+    let itemStreak = 0;
+    for (let index = itemPeriods.length - 1; index >= 0; index--) {
+      if (itemPeriods[index].state === "future") continue;
+      if (itemPeriods[index].state === "done") itemStreak++;
+      else break;
+    }
+    return {
+      habit: item, periods: itemPeriods, hits, total: itemElapsed.length, streak: itemStreak,
+      score: itemElapsed.length ? Math.round(hits / itemElapsed.length * 100) : 0,
+      unit: rhythmFor(item).type === "weekly" ? "weeks" : rhythmFor(item).type === "interval" ? `${rhythmFor(item).count}-day periods` : "days",
+    };
+  }) || [], [data]);
+  const overviewHits = summaries.reduce((sum, item) => sum + item.hits, 0);
+  const overviewTotal = summaries.reduce((sum, item) => sum + item.total, 0);
+  const overviewScore = overviewTotal ? Math.round(overviewHits / overviewTotal * 100) : 0;
+  const needsAttention = summaries.filter((item) => item.score < 60).length;
 
   async function sync() {
     setSyncing(true);
@@ -146,6 +168,7 @@ export default function Dashboard() {
         <div className="side-content">
           <div className="side-label">YOUR HABITS</div>
           <div className="habit-nav">
+            <button className={`overview-link ${isOverview ? "active" : ""}`} onClick={() => { setSelected(ALL_HABITS); setMenuOpen(false); }}><span className="habit-icon overview-icon">▦</span><span><strong>All habits</strong><small>Dashboard overview</small></span></button>
             {data.habits.map((h) => <button key={h.task_id} className={selected === h.task_id ? "active" : ""} onClick={() => { setSelected(h.task_id); setMenuOpen(false); }}><span className="habit-icon">✓</span><span><strong>{h.content}</strong><small>{scheduleLabel(h)}</small></span></button>)}
           </div>
           <button className="sync" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span> {syncing ? "Syncing…" : "Sync Todoist"}</button>
@@ -153,7 +176,24 @@ export default function Dashboard() {
         </div>
       </aside>
       <section className="dashboard">
-        {habit ? <>
+        {isOverview ? <>
+          <header><div><div className="eyebrow"><span /> ALL HABITS</div><h1>Your dashboard</h1><p>A clear view of every rhythm you’re tracking.</p></div><button className="button ghost compact adjust-rhythm" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span>{syncing ? "Syncing…" : "Sync Todoist"}</button></header>
+          <div className="stats overview-stats">
+            <article><span>OVERALL CONSISTENCY</span><strong>{overviewScore}<em>%</em></strong><small>across all completed periods</small></article>
+            <article><span>ACTIVE HABITS</span><strong>{summaries.length}</strong><small>currently tagged in Todoist</small></article>
+            <article><span>TARGETS MET</span><strong>{overviewHits}</strong><small>in the last 12 months</small></article>
+            <article><span>NEEDS ATTENTION</span><strong className={needsAttention ? "red" : ""}>{needsAttention}</strong><small>habits below 60%</small></article>
+          </div>
+          <div className="habit-summary-grid">
+            {summaries.map((summary) => <button key={summary.habit.task_id} onClick={() => setSelected(summary.habit.task_id)}>
+              <div className="summary-head"><span className="habit-icon">✓</span><span><strong>{summary.habit.content}</strong><small>{summary.habit.project_name} · {scheduleLabel(summary.habit)}</small></span><b>{summary.score}%</b></div>
+              <div className="summary-bar"><i style={{ width: `${summary.score}%` }} /></div>
+              <div className="summary-recent">{summary.periods.slice(-28).map((period) => <i key={period.key} className={period.state} title={period.label} />)}</div>
+              <div className="summary-foot"><span>{summary.hits} targets met</span><span>{summary.streak} {summary.unit} streak</span><strong>View habit →</strong></div>
+            </button>)}
+          </div>
+          <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"} · Read-only Todoist access</p>
+        </> : habit ? <>
           <header><div><div className="eyebrow"><span /> HABIT OVERVIEW</div><h1>{habit.content}</h1><p>{habit.project_name} <b>·</b> {scheduleLabel(habit)}</p></div><button className="button ghost compact adjust-rhythm" onClick={() => setSettings(true)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm9 4.2v-1.4l-2.1-.8a7 7 0 0 0-.7-1.7l.9-2-1-1-2 .9a7 7 0 0 0-1.7-.7L13.6 4h-1.4l-.8 2.1a7 7 0 0 0-1.7.7l-2-.9-1 1 .9 2a7 7 0 0 0-.7 1.7l-2.1.8v1.4l2.1.8a7 7 0 0 0 .7 1.7l-.9 2 1 1 2-.9a7 7 0 0 0 1.7.7l.8 2.1h1.4l.8-2.1a7 7 0 0 0 1.7-.7l2 .9 1-1-.9-2a7 7 0 0 0 .7-1.7l2.1-.8Z" /></svg>Adjust rhythm</button></header>
           <div className="stats">
             <article><span>CONSISTENCY</span><strong>{score}<em>%</em></strong><small>across completed periods</small></article>
