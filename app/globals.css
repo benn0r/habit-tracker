@@ -55,6 +55,9 @@ aside .brand { padding:0 9px 32px }
 .chart-card { max-width:1200px; margin:auto; background:#fffdf8; border:1px solid var(--line); border-radius:9px; padding:27px 30px }
 .chart-title{display:flex;justify-content:space-between;align-items:flex-end}.chart-title h2{font:normal 25px "DM Serif Display";margin:5px 0}.chart-legend{font-size:9px;color:#7c8580;display:flex;align-items:center;gap:6px}.chart-legend i{margin-left:9px}
 .year-grid { margin:30px 0 22px 34px; display:grid; grid-auto-flow:column; grid-template-rows:repeat(7,1fr); grid-auto-columns:minmax(8px,1fr); gap:4px; max-height:125px }.year-grid i{min-width:5px}
+.year-grid.interval { grid-template-rows:repeat(4,1fr); margin-left:0; max-height:92px }
+.year-grid.weekly { grid-auto-flow:row; grid-template-rows:1fr; grid-template-columns:repeat(53,minmax(6px,1fr)); margin-left:0; max-height:none }
+.year-grid.weekly i { border-radius:50% }
 .calendar-labels{position:absolute;display:flex;flex-direction:column;gap:26px;margin-top:33px;color:#999e9a;font-size:8px}
 .insight{display:flex;align-items:center;gap:14px;border-top:1px solid #e4e1d8;padding-top:19px}.insight>span{width:32px;height:32px;border-radius:50%;background:#e1e9df;display:grid;place-items:center;color:var(--green)}.insight p{margin:0;font-size:11px;color:#707a74}.insight strong{color:var(--ink)}
 .last-sync{max-width:1200px;margin:12px auto;text-align:right;font-size:9px;color:#9a9f9b}

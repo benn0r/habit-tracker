@@ -9,7 +9,12 @@ type Habit = {
 };
 type Completion = { task_id: string; completed_at: string };
 type Data = { user: { name: string; email: string; avatar?: string; last_sync?: string }; habits: Habit[]; completions: Completion[] };
-type Day = { date: Date; key: string; state: "done" | "miss" | "none" | "future" };
+type Period = {
+  date: Date; key: string; label: string;
+  state: "done" | "miss" | "future";
+  completed: number; target: number;
+};
+type Rhythm = { type: "daily" | "interval" | "weekly"; count: number };
 
 const keyOf = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -22,37 +27,47 @@ function scheduleLabel(h: Habit) {
   return h.todoist_recurrence || "No repeat";
 }
 
-function requiredOn(h: Habit, date: Date, first: Date) {
-  if (h.override_type === "weekly") return false;
-  if (h.override_type === "daily") return true;
+function rhythmFor(h: Habit): Rhythm {
+  if (h.override_type === "weekly") return { type: "weekly", count: h.override_count || 1 };
+  if (h.override_type === "interval") return { type: "interval", count: h.override_count || 2 };
+  if (h.override_type === "daily") return { type: "daily", count: 1 };
   const text = (h.todoist_recurrence || "").toLowerCase();
-  const interval = h.override_type === "interval" ? h.override_count || 2 :
-    Number(text.match(/every\s+(\d+)\s+days?/)?.[1] || (text.includes("every other day") ? 2 : 1));
-  if (text.includes("weekdays")) return date.getDay() > 0 && date.getDay() < 6;
-  if (text.includes("weekly") || text.includes("every week")) return date.getDay() === first.getDay();
-  return Math.floor((date.getTime() - first.getTime()) / 86400000) % interval === 0;
+  const interval = Number(text.match(/every\s+(\d+)\s+days?/)?.[1] || (text.includes("every other day") ? 2 : 0));
+  if (interval > 1) return { type: "interval", count: interval };
+  if (text.includes("weekly") || text.includes("every week") || /every\s+(mon|tue|wed|thu|fri|sat|sun)/.test(text)) {
+    return { type: "weekly", count: 1 };
+  }
+  return { type: "daily", count: 1 };
 }
 
-function buildDays(h: Habit, completions: Completion[]): Day[] {
+function buildPeriods(h: Habit, completions: Completion[]): Period[] {
   const today = startOfDay(new Date());
   const start = new Date(today); start.setFullYear(start.getFullYear() - 1); start.setDate(start.getDate() + 1);
-  start.setDate(start.getDate() - start.getDay());
-  const complete = new Set(completions.filter((c) => c.task_id === h.task_id).map((c) => keyOf(new Date(c.completed_at))));
-  const days: Day[] = [];
-  for (let i = 0; i < 371; i++) {
-    const date = new Date(start); date.setDate(start.getDate() + i);
-    const key = keyOf(date);
-    let state: Day["state"] = date > today ? "future" : complete.has(key) ? "done" : requiredOn(h, date, start) ? "miss" : "none";
-    days.push({ date, key, state });
+  const rhythm = rhythmFor(h);
+  if (rhythm.type === "weekly" || rhythm.type === "daily") {
+    start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
   }
-  if (h.override_type === "weekly") {
-    for (let i = 0; i < days.length; i += 7) {
-      const week = days.slice(i, i + 7).filter((d) => d.date <= today);
-      const done = week.filter((d) => d.state === "done").length;
-      if (week.length === 7 && done < (h.override_count || 1)) week[6].state = "miss";
-    }
+  const completionDates = completions
+    .filter((c) => c.task_id === h.task_id)
+    .map((c) => startOfDay(new Date(c.completed_at)));
+  const periodDays = rhythm.type === "weekly" ? 7 : rhythm.type === "interval" ? rhythm.count : 1;
+  const target = rhythm.type === "weekly" ? rhythm.count : 1;
+  const periods: Period[] = [];
+  for (let periodStart = new Date(start); periodStart <= today; periodStart.setDate(periodStart.getDate() + periodDays)) {
+    const date = new Date(periodStart);
+    const end = new Date(date); end.setDate(end.getDate() + periodDays);
+    const completed = completionDates.filter((d) => d >= date && d < end).length;
+    const stillOpen = end > today && completed < target;
+    const state: Period["state"] = completed >= target ? "done" : stillOpen ? "future" : "miss";
+    const range = periodDays === 1
+      ? date.toLocaleDateString(undefined, { dateStyle: "medium" })
+      : `${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}–${new Date(end.getTime() - 86400000).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+    periods.push({
+      date, key: `${keyOf(date)}-${periodDays}`, state, completed, target,
+      label: `${range}: ${completed}/${target} completed`,
+    });
   }
-  return days;
+  return periods;
 }
 
 export default function Dashboard() {
@@ -63,11 +78,13 @@ export default function Dashboard() {
   const load = () => fetch("/api/dashboard").then((r) => r.json()).then((d) => { setData(d); setSelected((s) => s || d.habits?.[0]?.task_id || ""); });
   useEffect(() => { load(); }, []);
   const habit = data?.habits.find((h) => h.task_id === selected);
-  const days = useMemo(() => habit && data ? buildDays(habit, data.completions) : [], [habit, data]);
-  const elapsed = days.filter((d) => d.state !== "future" && d.state !== "none");
+  const periods = useMemo(() => habit && data ? buildPeriods(habit, data.completions) : [], [habit, data]);
+  const rhythm = habit ? rhythmFor(habit) : { type: "daily" as const, count: 1 };
+  const elapsed = periods.filter((d) => d.state !== "future");
   const completed = elapsed.filter((d) => d.state === "done").length;
   const score = elapsed.length ? Math.round(completed / elapsed.length * 100) : 0;
-  const streak = (() => { let n = 0; for (let i = days.length - 1; i >= 0; i--) { if (days[i].state === "future" || days[i].state === "none") continue; if (days[i].state === "done") n++; else break; } return n; })();
+  const streak = (() => { let n = 0; for (let i = periods.length - 1; i >= 0; i--) { if (periods[i].state === "future") continue; if (periods[i].state === "done") n++; else break; } return n; })();
+  const unit = rhythm.type === "weekly" ? "weeks" : rhythm.type === "interval" ? `${rhythm.count}-day periods` : "days";
 
   async function sync() {
     setSyncing(true);
@@ -101,16 +118,16 @@ export default function Dashboard() {
         {habit ? <>
           <header><div><div className="eyebrow"><span /> HABIT OVERVIEW</div><h1>{habit.content}</h1><p>{habit.project_name} <b>·</b> {scheduleLabel(habit)}</p></div><button className="button ghost compact" onClick={() => setSettings(true)}>⚙ Adjust rhythm</button></header>
           <div className="stats">
-            <article><span>CONSISTENCY</span><strong>{score}<em>%</em></strong><small>across scheduled days</small></article>
-            <article><span>COMPLETED</span><strong>{completed}</strong><small>in the last 12 months</small></article>
-            <article><span>CURRENT STREAK</span><strong>{streak}<em> days</em></strong><small>{streak ? "keep the rhythm going" : "today is a fresh start"}</small></article>
-            <article><span>MISSED</span><strong className="red">{elapsed.length - completed}</strong><small>scheduled check-ins</small></article>
+            <article><span>CONSISTENCY</span><strong>{score}<em>%</em></strong><small>across completed periods</small></article>
+            <article><span>SUCCESSFUL PERIODS</span><strong>{completed}</strong><small>in the last 12 months</small></article>
+            <article><span>CURRENT STREAK</span><strong>{streak}<em> {unit}</em></strong><small>{streak ? "keep the rhythm going" : "this period is a fresh start"}</small></article>
+            <article><span>MISSED</span><strong className="red">{elapsed.length - completed}</strong><small>{unit} below target</small></article>
           </div>
           <article className="chart-card">
-            <div className="chart-title"><div><span>LAST 12 MONTHS</span><h2>Your year at a glance</h2></div><div className="chart-legend"><i className="done" /> Done <i className="miss" /> Missed <i className="none" /> Not scheduled</div></div>
-            <div className="calendar-labels"><span>Mon</span><span>Wed</span><span>Fri</span></div>
-            <div className="year-grid">{days.map((d) => <i key={d.key} className={d.state} title={`${d.date.toLocaleDateString()}: ${d.state}`} />)}</div>
-            <div className="insight"><span>✦</span><p><strong>{score >= 80 ? "Strong rhythm." : score >= 55 ? "A rhythm is forming." : "Room to reset."}</strong> You completed {completed} scheduled check-ins this year. Misses are information, not failure.</p></div>
+            <div className="chart-title"><div><span>LAST 12 MONTHS</span><h2>Your year at a glance</h2></div><div className="chart-legend"><i className="done" /> Target met <i className="miss" /> Missed <i className="none" /> Current period</div></div>
+            {rhythm.type === "daily" && <div className="calendar-labels"><span>Mon</span><span>Wed</span><span>Fri</span></div>}
+            <div className={`year-grid ${rhythm.type}`}>{periods.map((period) => <i key={period.key} className={period.state} title={period.label} />)}</div>
+            <div className="insight"><span>✦</span><p><strong>{score >= 80 ? "Strong rhythm." : score >= 55 ? "A rhythm is forming." : "Room to reset."}</strong> You hit your target in {completed} {unit} this year. Misses are information, not failure.</p></div>
           </article>
           <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"} · Read-only Todoist access</p>
         </> : <div className="empty"><span>✓</span><h1>No habits found yet</h1><p>Add the <code>@habit</code> label to a recurring Todoist task, then sync.</p><button className="button primary" onClick={sync}>Sync Todoist</button></div>}
