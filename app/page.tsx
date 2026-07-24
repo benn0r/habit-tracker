@@ -6,13 +6,13 @@ export default function Home() {
   return (
     <main className="landing">
       <nav className="nav">
-        <Link className="brand" href="/"><span className="brandmark">R</span> Ritual</Link>
+        <Link className="brand" href="/"><span className="brandmark">H</span> Habit Tracker</Link>
         <a className="button ghost" href="/api/auth/login">Log in</a>
       </nav>
       <section className="hero">
         <div className="eyebrow"><span /> BUILT FOR TODOIST</div>
         <h1>Your habits.<br /><em>Honestly.</em></h1>
-        <p>Ritual turns your recurring Todoist tasks into a clear picture of what you actually do — not what you planned to do.</p>
+        <p>Habit Tracker turns your recurring Todoist tasks into a clear picture of what you actually do — not what you planned to do.</p>
         <a className="button primary" href="/api/auth/login">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3.7c-.4-.2-.8-.2-1.2 0L12 8 4.7 3.7a1.2 1.2 0 0 0-1.2 2.1L11.4 10c.4.2.8.2 1.2 0l7.9-4.2c.8-.5.8-1.7 0-2.1ZM4.7 9.3a1.2 1.2 0 1 0-1.2 2.1l7.9 4.2c.4.2.8.2 1.2 0l7.9-4.2a1.2 1.2 0 1 0-1.2-2.1L12 13.2 4.7 9.3Zm0 5.6A1.2 1.2 0 1 0 3.5 17l7.9 4.2c.4.2.8.2 1.2 0l7.9-4.2a1.2 1.2 0 1 0-1.2-2.1L12 18.8l-7.3-3.9Z"/></svg>
           Continue with Todoist

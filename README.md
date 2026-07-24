@@ -1,6 +1,6 @@
-# Ritual
+# Habit Tracker
 
-A Todoist-powered habit tracker. Ritual discovers tasks tagged `habit`, imports a year of completion history, and compares what happened with the task's recurrence or a custom rhythm.
+A Todoist-powered habit tracker. Habit Tracker discovers tasks tagged `habit`, imports a year of completion history, and compares what happened with the task's recurrence or a custom rhythm.
 
 ## Features
 

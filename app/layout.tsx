@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Ritual — habits, honestly",
+  title: "Habit Tracker — habits, honestly",
   description: "Turn recurring Todoist tasks into honest habit insights.",
 };
 

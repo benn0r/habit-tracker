@@ -75,6 +75,7 @@ export default function Dashboard() {
   const [selected, setSelected] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const load = () => fetch("/api/dashboard").then((r) => r.json()).then((d) => { setData(d); setSelected((s) => s || d.habits?.[0]?.task_id || ""); });
   useEffect(() => { load(); }, []);
   const habit = data?.habits.find((h) => h.task_id === selected);
@@ -101,18 +102,23 @@ export default function Dashboard() {
     await load(); setSettings(false);
   }
 
-  if (!data) return <div className="loading"><span className="brandmark">R</span><p>Reading your rituals…</p></div>;
+  if (!data) return <div className="loading"><span className="brandmark">H</span><p>Reading your habits…</p></div>;
   const initials = data.user.name.split(" ").map((x) => x[0]).join("").slice(0, 2);
   return (
     <main className="shell">
-      <aside>
-        <a className="brand" href="/"><span className="brandmark">R</span> Ritual</a>
-        <div className="side-label">YOUR HABITS</div>
-        <div className="habit-nav">
-          {data.habits.map((h) => <button key={h.task_id} className={selected === h.task_id ? "active" : ""} onClick={() => setSelected(h.task_id)}><span className="habit-icon">✓</span><span><strong>{h.content}</strong><small>{scheduleLabel(h)}</small></span></button>)}
+      <aside className={menuOpen ? "menu-open" : ""}>
+        <div className="side-head">
+          <a className="brand" href="/"><span className="brandmark">H</span> Habit Tracker</a>
+          <button className="menu-toggle" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-label="Toggle navigation"><span /><span /><span /></button>
         </div>
-        <button className="sync" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span> {syncing ? "Syncing…" : "Sync Todoist"}</button>
-        <div className="profile"><div className="avatar">{data.user.avatar ? <img src={data.user.avatar} alt="" /> : initials}</div><span><strong>{data.user.name}</strong><small>{data.user.email}</small></span><form action="/api/auth/logout" method="post"><button title="Log out">↗</button></form></div>
+        <div className="side-content">
+          <div className="side-label">YOUR HABITS</div>
+          <div className="habit-nav">
+            {data.habits.map((h) => <button key={h.task_id} className={selected === h.task_id ? "active" : ""} onClick={() => { setSelected(h.task_id); setMenuOpen(false); }}><span className="habit-icon">✓</span><span><strong>{h.content}</strong><small>{scheduleLabel(h)}</small></span></button>)}
+          </div>
+          <button className="sync" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span> {syncing ? "Syncing…" : "Sync Todoist"}</button>
+          <div className="profile"><div className="avatar">{data.user.avatar ? <img src={data.user.avatar} alt="" /> : initials}</div><span><strong>{data.user.name}</strong><small>{data.user.email}</small></span><form action="/api/auth/logout" method="post"><button title="Log out">↗</button></form></div>
+        </div>
       </aside>
       <section className="dashboard">
         {habit ? <>
@@ -125,14 +131,16 @@ export default function Dashboard() {
           </div>
           <article className="chart-card">
             <div className="chart-title"><div><span>LAST 12 MONTHS</span><h2>Your year at a glance</h2></div><div className="chart-legend"><i className="done" /> Target met <i className="miss" /> Missed <i className="none" /> Current period</div></div>
-            {rhythm.type === "daily" && <div className="calendar-labels"><span>Mon</span><span>Wed</span><span>Fri</span></div>}
-            <div className={`year-grid ${rhythm.type}`}>{periods.map((period) => <i key={period.key} className={period.state} title={period.label} />)}</div>
+            <div className={`heatmap-scroll ${rhythm.type}`}>
+              {rhythm.type === "daily" && <div className="calendar-labels"><span>Mon</span><span>Wed</span><span>Fri</span></div>}
+              <div className={`year-grid ${rhythm.type}`}>{periods.map((period) => <i key={period.key} className={period.state} title={period.label}>{rhythm.type === "weekly" ? period.completed : null}</i>)}</div>
+            </div>
             <div className="insight"><span>✦</span><p><strong>{score >= 80 ? "Strong rhythm." : score >= 55 ? "A rhythm is forming." : "Room to reset."}</strong> You hit your target in {completed} {unit} this year. Misses are information, not failure.</p></div>
           </article>
           <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"} · Read-only Todoist access</p>
         </> : <div className="empty"><span>✓</span><h1>No habits found yet</h1><p>Add the <code>@habit</code> label to a recurring Todoist task, then sync.</p><button className="button primary" onClick={sync}>Sync Todoist</button></div>}
       </section>
-      {settings && habit && <div className="modal-bg" onMouseDown={() => setSettings(false)}><div className="modal" onMouseDown={(e) => e.stopPropagation()}><button className="close" onClick={() => setSettings(false)}>×</button><div className="eyebrow"><span /> OVERRIDE SCHEDULE</div><h2>What’s the real rhythm?</h2><p>Ritual will use this to judge completions. Nothing changes in Todoist.</p><div className="choices"><button onClick={() => saveSchedule("todoist")}><strong>Use Todoist schedule</strong><small>{habit.todoist_recurrence || "No recurring due date"}</small></button><button onClick={() => saveSchedule("daily")}><strong>Every day</strong><small>One completion each day</small></button><button onClick={() => saveSchedule("interval", 2)}><strong>Every two days</strong><small>Flexible alternating rhythm</small></button><button onClick={() => saveSchedule("weekly", 4)}><strong>4 times a week</strong><small>Any four days, Monday–Sunday</small></button></div></div></div>}
+      {settings && habit && <div className="modal-bg" onMouseDown={() => setSettings(false)}><div className="modal" onMouseDown={(e) => e.stopPropagation()}><button className="close" onClick={() => setSettings(false)}>×</button><div className="eyebrow"><span /> OVERRIDE SCHEDULE</div><h2>What’s the real rhythm?</h2><p>Habit Tracker will use this to judge completions. Nothing changes in Todoist.</p><div className="choices"><button onClick={() => saveSchedule("todoist")}><strong>Use Todoist schedule</strong><small>{habit.todoist_recurrence || "No recurring due date"}</small></button><button onClick={() => saveSchedule("daily")}><strong>Every day</strong><small>One completion each day</small></button><button onClick={() => saveSchedule("interval", 2)}><strong>Every two days</strong><small>Flexible alternating rhythm</small></button>{[1, 2, 3, 4, 5, 6, 7].map((count) => <button key={count} onClick={() => saveSchedule("weekly", count)}><strong>{count} {count === 1 ? "time" : "times"} a week</strong><small>Any {count === 1 ? "day" : `${count} days`}, Monday–Sunday</small></button>)}</div></div></div>}
     </main>
   );
 }
