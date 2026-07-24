@@ -15,6 +15,7 @@ type Period = {
   completed: number; target: number;
 };
 type Rhythm = { type: "daily" | "interval" | "weekly"; count: number };
+type View = "heatmap" | "trend" | "history";
 
 const keyOf = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -76,6 +77,7 @@ export default function Dashboard() {
   const [syncing, setSyncing] = useState(false);
   const [settings, setSettings] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [view, setView] = useState<View>("heatmap");
   const load = () => fetch("/api/dashboard").then((r) => r.json()).then((d) => { setData(d); setSelected((s) => s || d.habits?.[0]?.task_id || ""); });
   useEffect(() => { load(); }, []);
   const habit = data?.habits.find((h) => h.task_id === selected);
@@ -86,6 +88,21 @@ export default function Dashboard() {
   const score = elapsed.length ? Math.round(completed / elapsed.length * 100) : 0;
   const streak = (() => { let n = 0; for (let i = periods.length - 1; i >= 0; i--) { if (periods[i].state === "future") continue; if (periods[i].state === "done") n++; else break; } return n; })();
   const unit = rhythm.type === "weekly" ? "weeks" : rhythm.type === "interval" ? `${rhythm.count}-day periods` : "days";
+  const monthly = useMemo(() => {
+    const result: { key: string; label: string; hit: number; total: number; score: number }[] = [];
+    for (const period of elapsed) {
+      const key = `${period.date.getFullYear()}-${period.date.getMonth()}`;
+      let month = result.find((item) => item.key === key);
+      if (!month) {
+        month = { key, label: period.date.toLocaleDateString(undefined, { month: "short" }), hit: 0, total: 0, score: 0 };
+        result.push(month);
+      }
+      month.total++;
+      if (period.state === "done") month.hit++;
+      month.score = Math.round(month.hit / month.total * 100);
+    }
+    return result.slice(-12);
+  }, [elapsed]);
 
   async function sync() {
     setSyncing(true);
@@ -122,7 +139,7 @@ export default function Dashboard() {
       </aside>
       <section className="dashboard">
         {habit ? <>
-          <header><div><div className="eyebrow"><span /> HABIT OVERVIEW</div><h1>{habit.content}</h1><p>{habit.project_name} <b>·</b> {scheduleLabel(habit)}</p></div><button className="button ghost compact" onClick={() => setSettings(true)}>⚙ Adjust rhythm</button></header>
+          <header><div><div className="eyebrow"><span /> HABIT OVERVIEW</div><h1>{habit.content}</h1><p>{habit.project_name} <b>·</b> {scheduleLabel(habit)}</p></div><button className="button ghost compact adjust-rhythm" onClick={() => setSettings(true)}><span aria-hidden="true">⚙</span> Adjust rhythm</button></header>
           <div className="stats">
             <article><span>CONSISTENCY</span><strong>{score}<em>%</em></strong><small>across completed periods</small></article>
             <article><span>SUCCESSFUL PERIODS</span><strong>{completed}</strong><small>in the last 12 months</small></article>
@@ -130,11 +147,20 @@ export default function Dashboard() {
             <article><span>MISSED</span><strong className="red">{elapsed.length - completed}</strong><small>{unit} below target</small></article>
           </div>
           <article className="chart-card">
-            <div className="chart-title"><div><span>LAST 12 MONTHS</span><h2>Your year at a glance</h2></div><div className="chart-legend"><i className="done" /> Target met <i className="miss" /> Missed <i className="none" /> Current period</div></div>
-            <div className={`heatmap-scroll ${rhythm.type}`}>
-              {rhythm.type === "daily" && <div className="calendar-labels"><span>Mon</span><span>Wed</span><span>Fri</span></div>}
-              <div className={`year-grid ${rhythm.type}`}>{periods.map((period) => <i key={period.key} className={period.state} title={period.label}>{rhythm.type === "weekly" ? period.completed : null}</i>)}</div>
+            <div className="chart-title"><div><span>LAST 12 MONTHS</span><h2>{view === "heatmap" ? "Your year at a glance" : view === "trend" ? "Monthly consistency" : "Recent check-ins"}</h2></div>{view === "heatmap" && <div className="chart-legend"><i className="done" /> Target met <i className="miss" /> Missed <i className="none" /> Current period</div>}</div>
+            <div className="view-tabs" role="tablist" aria-label="Habit visualization">
+              <button className={view === "heatmap" ? "active" : ""} onClick={() => setView("heatmap")}>Heatmap</button>
+              <button className={view === "trend" ? "active" : ""} onClick={() => setView("trend")}>Monthly trend</button>
+              <button className={view === "history" ? "active" : ""} onClick={() => setView("history")}>History</button>
             </div>
+            {view === "heatmap" && <div className="heatmap-layout">
+              {rhythm.type === "daily" && <div className="calendar-labels">{["Mon", "", "Wed", "", "Fri", "", ""].map((label, index) => <span key={index}>{label}</span>)}</div>}
+              <div className={`heatmap-scroll ${rhythm.type}`}>
+                <div className={`year-grid ${rhythm.type}`}>{periods.map((period) => <i key={period.key} className={period.state} title={period.label}>{rhythm.type === "weekly" ? period.completed : null}</i>)}</div>
+              </div>
+            </div>}
+            {view === "trend" && <div className="trend-chart">{monthly.map((month) => <div className="trend-month" key={month.key} title={`${month.hit}/${month.total} targets met`}><strong>{month.score}%</strong><div><i style={{ height: `${Math.max(month.score, 3)}%` }} /></div><span>{month.label}</span></div>)}</div>}
+            {view === "history" && <div className="period-history">{periods.slice(-18).reverse().map((period) => <div key={period.key}><i className={period.state} /><span><strong>{period.label.split(":")[0]}</strong><small>{period.state === "future" ? "Still in progress" : `${period.completed} of ${period.target} completed`}</small></span><b>{period.state === "done" ? "Met" : period.state === "miss" ? "Missed" : "Open"}</b></div>)}</div>}
             <div className="insight"><span>✦</span><p><strong>{score >= 80 ? "Strong rhythm." : score >= 55 ? "A rhythm is forming." : "Room to reset."}</strong> You hit your target in {completed} {unit} this year. Misses are information, not failure.</p></div>
           </article>
           <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"} · Read-only Todoist access</p>
