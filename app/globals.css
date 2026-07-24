@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap');
+
+:root { --ink:#20322b; --paper:#f5f2e9; --cream:#ece8db; --red:#e95d45; --green:#3d755c; --soft:#b8c9b8; --line:#d8d5c9; }
+* { box-sizing:border-box }
+html,body { margin:0; min-height:100%; background:var(--paper); color:var(--ink); font-family:"DM Sans",sans-serif }
+button,a { font:inherit }
+a { color:inherit; text-decoration:none }
+.brand { display:flex; align-items:center; gap:11px; font-weight:700; letter-spacing:-.4px; font-size:20px }
+.brandmark { width:34px; height:34px; display:inline-grid; place-items:center; background:var(--red); color:white; border-radius:50% 46% 48% 44%; font-family:"DM Serif Display"; font-style:italic }
+.button { border:0; padding:12px 22px; border-radius:6px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:10px }
+.button svg { width:22px; fill:currentColor }
+.button.primary { background:var(--red); color:#fff; box-shadow:0 8px 20px #e95d4530 }
+.button.ghost { background:transparent; border:1px solid #9d9c94 }
+.button.compact { font-size:13px; padding:10px 14px }
+.nav { height:76px; max-width:1180px; margin:auto; display:flex; align-items:center; justify-content:space-between; padding:0 28px }
+.landing { min-height:100vh; background:radial-gradient(circle at 76% 23%,#dce5d7 0,transparent 31%), var(--paper) }
+.hero { max-width:800px; margin:85px auto 55px; padding:0 28px; text-align:center }
+.eyebrow { font-size:11px; letter-spacing:2px; font-weight:700; color:var(--green); display:flex; align-items:center; justify-content:center; gap:8px }
+.eyebrow span { width:20px; height:1px; background:var(--red) }
+.hero h1 { font:normal 76px/0.95 "DM Serif Display"; letter-spacing:-3px; margin:22px 0 }
+.hero h1 em { color:var(--red); font-weight:normal }
+.hero p { max-width:570px; margin:0 auto 28px; color:#58655f; line-height:1.65; font-size:17px }
+.hero small { display:block; color:#818983; margin-top:13px; font-size:11px }
+.preview { width:min(940px,calc(100% - 48px)); margin:auto; padding:30px 36px; background:#fffdf8; border:1px solid var(--line); box-shadow:0 20px 60px #31473b14; border-radius:11px; transform:rotate(-.3deg) }
+.preview-head { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:25px }
+.pill,.preview-head span { font-size:10px; letter-spacing:1.6px; color:var(--green); font-weight:700 }
+.preview h2 { font:normal 28px "DM Serif Display"; margin:7px 0 0 }
+.score { display:flex; align-items:baseline; gap:8px }.score strong { font:normal 42px "DM Serif Display" }.score span { letter-spacing:0; text-transform:none; color:#77817b }
+.heatmap { display:grid; grid-template-columns:repeat(21,1fr); gap:6px }
+.heatmap i,.year-grid i { aspect-ratio:1; border-radius:2px; background:#dedfd8 }
+i.done { background:var(--green) }.heatmap i.soft { background:#8daa99 } i.miss { background:var(--red) } i.none,i.future { background:#e3e2db }
+.legend { display:flex; gap:18px; justify-content:flex-end; margin-top:15px; color:#7b827e; font-size:10px }.legend i,.chart-legend i { width:9px; height:9px; display:inline-block; border-radius:2px }
+.feature-row { max-width:1100px; margin:85px auto; padding:0 30px; display:grid; grid-template-columns:repeat(3,1fr); gap:65px }
+.feature-row b { color:var(--red); font:italic 17px "DM Serif Display" }.feature-row h3 { font:normal 23px "DM Serif Display"; margin:12px 0 }.feature-row p { color:#66726c; line-height:1.6; font-size:14px }.feature-row code,.empty code { color:var(--red); background:#eadfd6; padding:2px 5px; border-radius:4px }
+
+.shell { min-height:100vh; display:grid; grid-template-columns:250px 1fr; background:#f7f5ee }
+aside { position:sticky; top:0; height:100vh; background:#ece9df; border-right:1px solid #d9d6cc; padding:28px 20px; display:flex; flex-direction:column }
+aside .brand { padding:0 9px 32px }
+.side-label { font-size:9px; letter-spacing:1.7px; color:#8b918d; font-weight:700; padding:16px 12px 10px; border-top:1px solid #d5d2c8 }
+.habit-nav { display:flex; flex-direction:column; gap:4px }
+.habit-nav button { border:0; text-align:left; background:transparent; border-radius:7px; padding:10px; display:flex; align-items:center; gap:10px; color:var(--ink); cursor:pointer }
+.habit-nav button.active { background:#fff; box-shadow:0 2px 8px #26352e0c }
+.habit-icon { width:28px; height:28px; border-radius:50%; border:1px solid #acb7ae; display:grid; place-items:center; color:var(--green) }
+.habit-nav button.active .habit-icon { background:var(--green); color:#fff }
+.habit-nav strong,.habit-nav small { display:block }.habit-nav strong { font-size:13px }.habit-nav small { font-size:10px; color:#8b928e; margin-top:3px }
+.sync { margin:auto 9px 18px; padding:10px; border:1px solid #c8c6bd; background:transparent; border-radius:6px; cursor:pointer; color:#4c5b54; font-size:12px }
+.sync .spin { display:inline-block; animation:spin 1s linear infinite }@keyframes spin{to{transform:rotate(360deg)}}
+.profile { padding:17px 5px 0; border-top:1px solid #d5d2c8; display:flex; gap:9px; align-items:center }.avatar { width:31px;height:31px;border-radius:50%;background:#cad6c9;display:grid;place-items:center;font-size:11px;overflow:hidden}.avatar img{width:100%;height:100%;object-fit:cover}
+.profile span { min-width:0; flex:1 }.profile strong,.profile small { display:block; overflow:hidden; text-overflow:ellipsis }.profile strong{font-size:11px}.profile small{font-size:9px;color:#858c88}.profile form button{border:0;background:none;color:#7f8882;cursor:pointer}
+.dashboard { padding:48px 5vw; min-width:0 }
+.dashboard>header { display:flex; justify-content:space-between; align-items:center; max-width:1200px; margin:auto }
+.dashboard>header .eyebrow { justify-content:flex-start }.dashboard h1 { font:normal 42px "DM Serif Display"; letter-spacing:-1px; margin:9px 0 4px }.dashboard header p { margin:0;color:#79817c;font-size:12px}.dashboard header p b{color:var(--red);padding:0 5px}
+.stats { max-width:1200px; margin:38px auto 22px; display:grid; grid-template-columns:repeat(4,1fr); border:1px solid var(--line); background:#fffdf8; border-radius:9px }
+.stats article { padding:21px 24px; border-right:1px solid var(--line) }.stats article:last-child{border:0}.stats span,.chart-title span{font-size:9px;letter-spacing:1.5px;font-weight:700;color:#89908c}.stats strong{display:block;font:normal 34px "DM Serif Display";margin:5px 0}.stats strong em{font:normal 15px "DM Sans";color:#78827c}.stats strong.red{color:var(--red)}.stats small{color:#929893;font-size:9px}
+.chart-card { max-width:1200px; margin:auto; background:#fffdf8; border:1px solid var(--line); border-radius:9px; padding:27px 30px }
+.chart-title{display:flex;justify-content:space-between;align-items:flex-end}.chart-title h2{font:normal 25px "DM Serif Display";margin:5px 0}.chart-legend{font-size:9px;color:#7c8580;display:flex;align-items:center;gap:6px}.chart-legend i{margin-left:9px}
+.year-grid { margin:30px 0 22px 34px; display:grid; grid-auto-flow:column; grid-template-rows:repeat(7,1fr); grid-auto-columns:minmax(8px,1fr); gap:4px; max-height:125px }.year-grid i{min-width:5px}
+.calendar-labels{position:absolute;display:flex;flex-direction:column;gap:26px;margin-top:33px;color:#999e9a;font-size:8px}
+.insight{display:flex;align-items:center;gap:14px;border-top:1px solid #e4e1d8;padding-top:19px}.insight>span{width:32px;height:32px;border-radius:50%;background:#e1e9df;display:grid;place-items:center;color:var(--green)}.insight p{margin:0;font-size:11px;color:#707a74}.insight strong{color:var(--ink)}
+.last-sync{max-width:1200px;margin:12px auto;text-align:right;font-size:9px;color:#9a9f9b}
+.empty{height:75vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}.empty>span{font-size:30px;color:var(--green);border:1px solid var(--green);width:60px;height:60px;border-radius:50%;display:grid;place-items:center}.empty p{color:#737d77}.empty .button{margin-top:15px}
+.loading{height:100vh;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;color:#7f8983}
+.modal-bg{position:fixed;inset:0;background:#25362e88;backdrop-filter:blur(4px);display:grid;place-items:center;z-index:10;padding:20px}.modal{width:min(480px,100%);background:#fbfaf5;border-radius:12px;padding:35px;position:relative;box-shadow:0 30px 100px #17231d66}.modal .close{position:absolute;right:18px;top:15px;border:0;background:none;font-size:25px;color:#777;cursor:pointer}.modal .eyebrow{justify-content:flex-start}.modal h2{font:normal 32px "DM Serif Display";margin:10px 0 5px}.modal>p{font-size:12px;color:#78817c}.choices{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:25px}.choices button{text-align:left;padding:14px;border:1px solid var(--line);background:white;border-radius:7px;cursor:pointer}.choices button:hover{border-color:var(--green);background:#f1f5ee}.choices strong,.choices small{display:block}.choices strong{font-size:12px}.choices small{font-size:9px;color:#8c938f;margin-top:4px}
+@media(max-width:800px){.hero{margin-top:55px}.hero h1{font-size:55px}.feature-row{grid-template-columns:1fr;gap:25px}.shell{display:block}.shell aside{position:relative;height:auto;padding:18px}.shell aside .brand{padding-bottom:12px}.side-label,.habit-nav,.profile{display:none}.sync{position:absolute;right:12px;top:13px;margin:0}.dashboard{padding:28px 18px}.dashboard>header{align-items:flex-end}.dashboard h1{font-size:32px}.stats{grid-template-columns:1fr 1fr}.stats article:nth-child(2){border-right:0}.stats article:nth-child(-n+2){border-bottom:1px solid var(--line)}.chart-card{padding:20px 14px}.chart-title{align-items:flex-start}.chart-legend{display:none}.year-grid{margin-left:24px;gap:3px}.preview{padding:22px}.heatmap{grid-template-columns:repeat(9,1fr)}}
