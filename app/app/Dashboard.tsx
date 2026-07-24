@@ -118,7 +118,9 @@ export default function Dashboard() {
     return result.slice(-12);
   }, [elapsed]);
   const summaries = useMemo(() => data?.habits.map((item) => {
-    const itemPeriods = buildPeriods(item, data.completions);
+    const dashboardCutoff = startOfDay(new Date());
+    dashboardCutoff.setMonth(dashboardCutoff.getMonth() - 3);
+    const itemPeriods = buildPeriods(item, data.completions).filter((period) => period.date >= dashboardCutoff);
     const itemElapsed = itemPeriods.filter((period) => period.state !== "future");
     const hits = itemElapsed.filter((period) => period.state === "done").length;
     let itemStreak = 0;
@@ -169,7 +171,7 @@ export default function Dashboard() {
           <div className="side-label">YOUR HABITS</div>
           <div className="habit-nav">
             <button className={`overview-link ${isOverview ? "active" : ""}`} onClick={() => { setSelected(ALL_HABITS); setMenuOpen(false); }}><span className="habit-icon overview-icon">▦</span><span><strong>All habits</strong><small>Dashboard overview</small></span></button>
-            {data.habits.map((h) => <button key={h.task_id} className={selected === h.task_id ? "active" : ""} onClick={() => { setSelected(h.task_id); setMenuOpen(false); }}><span className="habit-icon">✓</span><span><strong>{h.content}</strong><small>{scheduleLabel(h)}</small></span></button>)}
+            {data.habits.map((h) => <button key={h.task_id} className={selected === h.task_id ? "active" : ""} onClick={() => { setSelected(h.task_id); setMenuOpen(false); }}><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{h.content}</strong><small>{scheduleLabel(h)}</small></span></button>)}
           </div>
           <button className="sync" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span> {syncing ? "Syncing…" : "Sync Todoist"}</button>
           <div className="profile"><div className="avatar">{data.user.avatar ? <img src={data.user.avatar} alt="" /> : initials}</div><span><strong>{data.user.name}</strong><small>{data.user.email}</small></span><form action="/api/auth/logout" method="post"><button title="Log out">↗</button></form></div>
@@ -177,16 +179,16 @@ export default function Dashboard() {
       </aside>
       <section className="dashboard">
         {isOverview ? <>
-          <header><div><div className="eyebrow"><span /> ALL HABITS</div><h1>Your dashboard</h1><p>A clear view of every rhythm you’re tracking.</p></div><button className="button ghost compact adjust-rhythm" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span>{syncing ? "Syncing…" : "Sync Todoist"}</button></header>
+          <header><div><div className="eyebrow"><span /> LAST 3 MONTHS</div><h1>Your dashboard</h1><p>A recent view of every rhythm you’re tracking.</p></div><button className="button ghost compact adjust-rhythm" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span>{syncing ? "Syncing…" : "Sync Todoist"}</button></header>
           <div className="stats overview-stats">
             <article><span>OVERALL CONSISTENCY</span><strong>{overviewScore}<em>%</em></strong><small>across all completed periods</small></article>
             <article><span>ACTIVE HABITS</span><strong>{summaries.length}</strong><small>currently tagged in Todoist</small></article>
-            <article><span>TARGETS MET</span><strong>{overviewHits}</strong><small>in the last 12 months</small></article>
+            <article><span>TARGETS MET</span><strong>{overviewHits}</strong><small>in the last 3 months</small></article>
             <article><span>NEEDS ATTENTION</span><strong className={needsAttention ? "red" : ""}>{needsAttention}</strong><small>habits below 60%</small></article>
           </div>
           <div className="habit-summary-grid">
             {summaries.map((summary) => <button key={summary.habit.task_id} onClick={() => setSelected(summary.habit.task_id)}>
-              <div className="summary-head"><span className="habit-icon">✓</span><span><strong>{summary.habit.content}</strong><small>{summary.habit.project_name} · {scheduleLabel(summary.habit)}</small></span><b>{summary.score}%</b></div>
+              <div className="summary-head"><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{summary.habit.content}</strong><small>{summary.habit.project_name} · {scheduleLabel(summary.habit)}</small></span><b>{summary.score}%</b></div>
               <div className="summary-bar"><i style={{ width: `${summary.score}%` }} /></div>
               <div className="summary-recent">{summary.periods.slice(-28).map((period) => <i key={period.key} className={period.state} title={period.label} />)}</div>
               <div className="summary-foot"><span>{summary.hits} targets met</span><span>{summary.streak} {summary.unit} streak</span><strong>View habit →</strong></div>

@@ -44,6 +44,7 @@ aside { position:sticky; top:0; height:100vh; background:#ece9df; border-right:1
 .habit-nav button.active { background:#fff; box-shadow:0 2px 8px #26352e0c }
 .habit-icon { width:28px; height:28px; border-radius:50%; border:1px solid #acb7ae; display:grid; place-items:center; color:var(--green) }
 .habit-nav button.active .habit-icon { background:var(--green); color:#fff }
+.habit-dot{border:0;border-radius:8px;background:#dce5da;position:relative}.habit-dot:after{content:"";width:8px;height:8px;border-radius:50%;background:var(--green)}.habit-nav button.active .habit-dot{background:var(--green)}.habit-nav button.active .habit-dot:after{background:#fff}
 .overview-icon{border-radius:7px}
 .habit-nav strong,.habit-nav small { display:block }.habit-nav strong { font-size:13px }.habit-nav small { font-size:10px; color:#8b928e; margin-top:3px }
 .sync { margin:auto 9px 18px; padding:10px; border:1px solid #c8c6bd; background:transparent; border-radius:6px; cursor:pointer; color:#4c5b54; font-size:12px }
