@@ -1,34 +1,35 @@
-import { Pool } from "pg";
+import Database from "better-sqlite3";
+import { mkdirSync } from "fs";
+import { dirname } from "path";
 
-declare global { var habitPool: Pool | undefined; }
+declare global { var habitDb: Database.Database | undefined; }
 
-const pool = global.habitPool ?? new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : undefined,
-});
-if (process.env.NODE_ENV !== "production") global.habitPool = pool;
-
-let ready: Promise<void> | undefined;
-export function initDb() {
-  ready ??= pool.query(`
+export function getDb() {
+  if (global.habitDb) return global.habitDb;
+  const file = process.env.SQLITE_PATH || "./data/habit.db";
+  mkdirSync(dirname(file), { recursive: true });
+  const db = new Database(file);
+  db.pragma("journal_mode = WAL");
+  db.pragma("foreign_keys = ON");
+  db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT, avatar TEXT,
-      access_token TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW(), last_sync TIMESTAMPTZ
+      access_token TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, last_sync TEXT
     );
     CREATE TABLE IF NOT EXISTS habits (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       task_id TEXT NOT NULL, content TEXT NOT NULL, todoist_recurrence TEXT,
       override_type TEXT, override_count INTEGER, override_period TEXT,
-      project_name TEXT, color TEXT DEFAULT '#ff6b57', active BOOLEAN DEFAULT TRUE,
+      project_name TEXT, color TEXT DEFAULT '#ff6b57', active INTEGER DEFAULT 1,
       PRIMARY KEY (user_id, task_id)
     );
     CREATE TABLE IF NOT EXISTS completions (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      task_id TEXT NOT NULL, completed_at TIMESTAMPTZ NOT NULL,
+      task_id TEXT NOT NULL, completed_at TEXT NOT NULL,
       completion_id TEXT NOT NULL, PRIMARY KEY (user_id, completion_id)
     );
-  `).then(() => undefined);
-  return ready;
+    CREATE INDEX IF NOT EXISTS idx_completions_user_date ON completions(user_id, completed_at);
+  `);
+  global.habitDb = db;
+  return db;
 }
-
-export { pool };

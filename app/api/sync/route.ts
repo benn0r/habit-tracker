@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth";
-import { initDb, pool } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { paged } from "@/lib/todoist";
 
 type Task = {
@@ -13,10 +13,10 @@ type Completed = {
 };
 
 async function runSync(userId: string) {
-  await initDb();
-  const userResult = await pool.query("SELECT access_token FROM users WHERE id=$1", [userId]);
-  if (!userResult.rowCount) throw new Error("User not found");
-  const token = userResult.rows[0].access_token;
+  const db = getDb();
+  const user = db.prepare("SELECT access_token FROM users WHERE id=?").get(userId) as { access_token: string } | undefined;
+  if (!user) throw new Error("User not found");
+  const token = user.access_token;
   const [tasks, projects] = await Promise.all([
     paged<Task>("/tasks", token),
     paged<Project>("/projects", token),
@@ -24,18 +24,21 @@ async function runSync(userId: string) {
   const projectNames = new Map(projects.map((p) => [p.id, p.name]));
   const habits = tasks.filter((t) => t.labels.some((l) => l.toLowerCase() === "habit"));
 
-  for (const task of habits) {
-    await pool.query(
+  const upsertHabit = db.prepare(
       `INSERT INTO habits(user_id,task_id,content,todoist_recurrence,project_name)
-       VALUES($1,$2,$3,$4,$5) ON CONFLICT(user_id,task_id) DO UPDATE
-       SET content=$3,todoist_recurrence=$4,project_name=$5,active=TRUE`,
-      [userId, task.id, task.content, task.due?.is_recurring ? task.due.string || "Recurring" : null, projectNames.get(task.project_id) || "Todoist"]
-    );
-  }
-  await pool.query(
-    `UPDATE habits SET active=FALSE WHERE user_id=$1 AND NOT(task_id = ANY($2::text[]))`,
-    [userId, habits.map((h) => h.id)]
+       VALUES(?,?,?,?,?) ON CONFLICT(user_id,task_id) DO UPDATE SET
+       content=excluded.content,todoist_recurrence=excluded.todoist_recurrence,
+       project_name=excluded.project_name,active=1`
   );
+  const saveHabits = db.transaction((items: Task[]) => {
+    db.prepare("UPDATE habits SET active=0 WHERE user_id=?").run(userId);
+    for (const task of items) upsertHabit.run(
+      userId, task.id, task.content,
+      task.due?.is_recurring ? task.due.string || "Recurring" : null,
+      projectNames.get(task.project_id) || "Todoist"
+    );
+  });
+  saveHabits(habits);
 
   const since = new Date(); since.setFullYear(since.getFullYear() - 1); since.setDate(since.getDate() - 7);
   const until = new Date(); until.setDate(until.getDate() + 1);
@@ -45,16 +48,19 @@ async function runSync(userId: string) {
   );
   const known = new Map<string, string>();
   habits.forEach((h) => known.set(h.content.trim().toLowerCase(), h.id));
-  for (const item of completed) {
-    const taskId = item.task_id || (item.content ? known.get(item.content.trim().toLowerCase()) : undefined);
-    if (!taskId || !habits.some((h) => h.id === taskId)) continue;
-    await pool.query(
-      `INSERT INTO completions(user_id,task_id,completed_at,completion_id) VALUES($1,$2,$3,$4)
-       ON CONFLICT(user_id,completion_id) DO NOTHING`,
-      [userId, taskId, item.completed_at, item.id || `${taskId}:${item.completed_at}`]
-    );
-  }
-  await pool.query("UPDATE users SET last_sync=NOW() WHERE id=$1", [userId]);
+  const insertCompletion = db.prepare(
+    `INSERT INTO completions(user_id,task_id,completed_at,completion_id) VALUES(?,?,?,?)
+     ON CONFLICT(user_id,completion_id) DO NOTHING`
+  );
+  const saveCompletions = db.transaction((items: Completed[]) => {
+    for (const item of items) {
+      const taskId = item.task_id || (item.content ? known.get(item.content.trim().toLowerCase()) : undefined);
+      if (!taskId || !habits.some((h) => h.id === taskId)) continue;
+      insertCompletion.run(userId, taskId, item.completed_at, item.id || `${taskId}:${item.completed_at}`);
+    }
+  });
+  saveCompletions(completed);
+  db.prepare("UPDATE users SET last_sync=? WHERE id=?").run(new Date().toISOString(), userId);
   return { habits: habits.length, completions: completed.length };
 }
 
@@ -70,9 +76,8 @@ export async function GET(request: Request) {
   if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  await initDb();
-  const users = await pool.query("SELECT id FROM users");
+  const users = getDb().prepare("SELECT id FROM users").all() as { id: string }[];
   const results = [];
-  for (const user of users.rows) results.push(await runSync(user.id));
+  for (const user of users) results.push(await runSync(user.id));
   return NextResponse.json({ synced: results.length, results });
 }

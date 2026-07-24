@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createSession } from "@/lib/auth";
-import { initDb, pool } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { todoist } from "@/lib/todoist";
 
 export async function GET(request: Request) {
@@ -19,12 +19,11 @@ export async function GET(request: Request) {
   if (!tokenResponse.ok) return NextResponse.redirect(`${origin}/?error=token`);
   const { access_token } = await tokenResponse.json();
   const user = await todoist<{ id: string; full_name: string; email?: string; avatar_big?: string }>("/user", access_token);
-  await initDb();
-  await pool.query(
-    `INSERT INTO users(id,name,email,avatar,access_token) VALUES($1,$2,$3,$4,$5)
-     ON CONFLICT(id) DO UPDATE SET name=$2,email=$3,avatar=$4,access_token=$5`,
-    [user.id, user.full_name, user.email || null, user.avatar_big || null, access_token]
-  );
+  getDb().prepare(
+    `INSERT INTO users(id,name,email,avatar,access_token) VALUES(?,?,?,?,?)
+     ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email,
+     avatar=excluded.avatar,access_token=excluded.access_token`
+  ).run(user.id, user.full_name, user.email || null, user.avatar_big || null, access_token);
   const response = NextResponse.redirect(`${origin}/app`);
   response.cookies.set("ritual_session", await createSession(user.id), { httpOnly: true, secure: origin.startsWith("https"), sameSite: "lax", maxAge: 2592000 });
   response.cookies.delete("todoist_state");
