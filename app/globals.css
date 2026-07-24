@@ -33,6 +33,7 @@ i.done { background:var(--green) }.heatmap i.soft { background:#8daa99 } i.miss 
 .legend { display:flex; gap:18px; justify-content:flex-end; margin-top:15px; color:#7b827e; font-size:10px }.legend i,.chart-legend i { width:9px; height:9px; display:inline-block; border-radius:2px }
 .feature-row { max-width:1100px; margin:85px auto; padding:0 30px; display:grid; grid-template-columns:repeat(3,1fr); gap:65px }
 .feature-row b { color:var(--red); font:italic 17px "DM Serif Display" }.feature-row h3 { font:normal 23px "DM Serif Display"; margin:12px 0 }.feature-row p { color:#66726c; line-height:1.6; font-size:14px }.feature-row code,.empty code { color:var(--red); background:#eadfd6; padding:2px 5px; border-radius:4px }
+.landing-build{margin:-45px auto 0;padding:0 20px 30px;text-align:center;color:#9a9f9b;font-size:9px;letter-spacing:.4px}
 
 .shell { min-height:100vh; display:grid; grid-template-columns:250px 1fr; background:#f7f5ee }
 aside { position:sticky; top:0; height:100vh; background:#ece9df; border-right:1px solid #d9d6cc; padding:28px 20px; display:flex; flex-direction:column }
@@ -51,6 +52,7 @@ aside { position:sticky; top:0; height:100vh; background:#ece9df; border-right:1
 .sync .spin { display:inline-block; animation:spin 1s linear infinite }@keyframes spin{to{transform:rotate(360deg)}}
 .profile { padding:17px 5px 0; border-top:1px solid #d5d2c8; display:flex; gap:9px; align-items:center }.avatar { width:31px;height:31px;border-radius:50%;background:#cad6c9;display:grid;place-items:center;font-size:11px;overflow:hidden}.avatar img{width:100%;height:100%;object-fit:cover}
 .profile span { min-width:0; flex:1 }.profile strong,.profile small { display:block; overflow:hidden; text-overflow:ellipsis }.profile strong{font-size:11px}.profile small{font-size:9px;color:#858c88}.profile form button{border:0;background:none;color:#7f8882;cursor:pointer}
+.build-number{padding:9px 5px 0;color:#9a9f9b;font-size:8px;letter-spacing:.4px;text-align:center}
 .dashboard { padding:48px 5vw; min-width:0 }
 .dashboard>header { display:flex; justify-content:space-between; align-items:center; max-width:1200px; margin:auto }
 .dashboard>header .eyebrow { justify-content:flex-start }.dashboard h1 { font:normal 42px "DM Serif Display"; letter-spacing:-1px; margin:9px 0 4px }.dashboard header p { margin:0;color:#79817c;font-size:12px}.dashboard header p b{color:var(--red);padding:0 5px}

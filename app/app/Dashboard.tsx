@@ -17,6 +17,7 @@ type Period = {
 type Rhythm = { type: "daily" | "interval" | "weekly"; count: number };
 type View = "heatmap" | "trend" | "history";
 const ALL_HABITS = "all";
+const BUILD_NUMBER = (process.env.NEXT_PUBLIC_APP_VERSION || "dev").slice(0, 7);
 
 const keyOf = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -175,6 +176,7 @@ export default function Dashboard() {
           </div>
           <button className="sync" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span> {syncing ? "Syncing…" : "Sync Todoist"}</button>
           <div className="profile"><div className="avatar">{data.user.avatar ? <img src={data.user.avatar} alt="" /> : initials}</div><span><strong>{data.user.name}</strong><small>{data.user.email}</small></span><form action="/api/auth/logout" method="post"><button title="Log out">↗</button></form></div>
+          <div className="build-number">Habit Tracker · build {BUILD_NUMBER}</div>
         </div>
       </aside>
       <section className="dashboard">

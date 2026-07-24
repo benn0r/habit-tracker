@@ -58,13 +58,14 @@ jobs:
         shell: sh
         env:
           IMAGE_BRANCH: ${{ gitea.ref_name }}
+          SOURCE_COMMIT: ${{ gitea.sha }}
         run: |
           image="git.example.com/example-user/habit-tracker"
           branch_tag="$(printf '%s' "${IMAGE_BRANCH}" \
             | tr '[:upper:]' '[:lower:]' \
             | sed 's#[^a-z0-9_.-]#-#g')"
 
-          docker build --tag "${image}:${branch_tag}" .
+          docker build --build-arg APP_VERSION="${SOURCE_COMMIT}" --tag "${image}:${branch_tag}" .
           docker push "${image}:${branch_tag}"
 
       - name: Remove obsolete package versions

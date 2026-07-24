@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
+const BUILD_NUMBER = (process.env.NEXT_PUBLIC_APP_VERSION || "dev").slice(0, 7);
 
 const sample = Array.from({ length: 63 }, (_, i) => i % 11 === 0 ? "miss" : i % 5 === 0 ? "soft" : i > 56 ? "none" : "done");
 
@@ -31,6 +32,7 @@ export default function Home() {
         <div><b>02</b><h3>Set your real rhythm</h3><p>Daily, every two days, or four times a week. Override schedules Todoist can’t express.</p></div>
         <div><b>03</b><h3>See the whole story</h3><p>A year of completions and misses, without streak anxiety or selective memory.</p></div>
       </div>
+      <p className="landing-build">Habit Tracker · build {BUILD_NUMBER}</p>
     </main>
   );
 }
