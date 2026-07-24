@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { paged } from "@/lib/todoist";
+import { paged, todoist } from "@/lib/todoist";
 
 type Task = {
   id: string; content: string; labels: string[]; project_id: string;
@@ -9,7 +9,11 @@ type Task = {
 };
 type Project = { id: string; name: string };
 type Completed = {
-  id?: string; task_id?: string; content?: string; completed_at: string;
+  id?: string; event_id?: string; task_id?: string; content?: string; completed_at: string;
+};
+type Activity = {
+  id: string; object_id: string; event_date: string;
+  extra_data?: { content?: string };
 };
 
 async function completedForYear(token: string, since: Date, until: Date) {
@@ -27,6 +31,35 @@ async function completedForYear(token: string, since: Date, until: Date) {
     windowStart = windowEnd;
   }
   return all;
+}
+
+async function activityCompletions(token: string, since: Date) {
+  const output: Completed[] = [];
+  let cursor: string | null = null;
+  let reachedCutoff = false;
+  do {
+    const query = new URLSearchParams({
+      object_event_types: JSON.stringify(["item:completed"]),
+      limit: "200",
+    });
+    if (cursor) query.set("cursor", cursor);
+    const page: { results: Activity[]; next_cursor?: string } = await todoist(
+      `/activities?${query.toString()}`,
+      token
+    );
+    for (const event of page.results || []) {
+      const date = new Date(event.event_date);
+      if (date < since) { reachedCutoff = true; continue; }
+      output.push({
+        event_id: event.id,
+        task_id: String(event.object_id),
+        content: event.extra_data?.content,
+        completed_at: event.event_date,
+      });
+    }
+    cursor = reachedCutoff ? null : page.next_cursor || null;
+  } while (cursor);
+  return output;
 }
 
 async function runSync(userId: string) {
@@ -59,7 +92,14 @@ async function runSync(userId: string) {
 
   const since = new Date(); since.setFullYear(since.getFullYear() - 1); since.setDate(since.getDate() - 7);
   const until = new Date(); until.setDate(until.getDate() + 1);
-  const completed = await completedForYear(token, since, until);
+  let completed: Completed[];
+  let completionSource = "activity";
+  try {
+    completed = await activityCompletions(token, since);
+  } catch {
+    completed = await completedForYear(token, since, until);
+    completionSource = "archive";
+  }
   const known = new Map<string, string>();
   habits.forEach((h) => known.set(h.content.trim().toLowerCase(), h.id));
   const insertCompletion = db.prepare(
@@ -73,12 +113,12 @@ async function runSync(userId: string) {
         || (item.id && habits.some((h) => h.id === item.id) ? item.id : undefined)
         || (item.content ? known.get(item.content.trim().toLowerCase()) : undefined);
       if (!taskId || !habits.some((h) => h.id === taskId)) continue;
-      insertCompletion.run(userId, taskId, item.completed_at, `${taskId}:${item.completed_at}`);
+      insertCompletion.run(userId, taskId, item.completed_at, item.event_id || `${taskId}:${item.completed_at}`);
     }
   });
   saveCompletions(completed);
   db.prepare("UPDATE users SET last_sync=? WHERE id=?").run(new Date().toISOString(), userId);
-  return { habits: habits.length, completions: completed.length };
+  return { habits: habits.length, completions: completed.length, source: completionSource };
 }
 
 export async function POST() {
