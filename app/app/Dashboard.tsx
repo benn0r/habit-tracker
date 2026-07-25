@@ -50,9 +50,9 @@ function rhythmFor(h: Habit): Rhythm {
   return { type: "daily", count: 1 };
 }
 
-function buildPeriods(h: Habit, completions: Completion[]): Period[] {
+function buildPeriods(h: Habit, completions: Completion[], months = 12): Period[] {
   const today = startOfDay(new Date());
-  const start = new Date(today); start.setFullYear(start.getFullYear() - 1); start.setDate(start.getDate() + 1);
+  const start = new Date(today); start.setMonth(start.getMonth() - months); start.setDate(start.getDate() + 1);
   const rhythm = rhythmFor(h);
   if (rhythm.type === "weekly" || rhythm.type === "daily") {
     start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
@@ -147,15 +147,27 @@ export default function Dashboard() {
     return result.slice(-12);
   }, [elapsed]);
   const summaries = useMemo(() => data?.habits.map((item) => {
-    const dashboardCutoff = startOfDay(new Date());
+    const today = startOfDay(new Date());
+    const dashboardCutoff = new Date(today);
     if (range === "30d") dashboardCutoff.setDate(dashboardCutoff.getDate() - 29);
     if (range === "90d") dashboardCutoff.setDate(dashboardCutoff.getDate() - 89);
     if (range === "6m") dashboardCutoff.setMonth(dashboardCutoff.getMonth() - 6);
     if (range === "ytd") dashboardCutoff.setMonth(0, 1);
     if (range === "12m") dashboardCutoff.setFullYear(dashboardCutoff.getFullYear() - 1);
-    const itemPeriods = buildPeriods(item, data.completions).filter((period) => period.date >= dashboardCutoff);
+    const previousCutoff = new Date(dashboardCutoff);
+    if (range === "30d") previousCutoff.setDate(previousCutoff.getDate() - 30);
+    if (range === "90d") previousCutoff.setDate(previousCutoff.getDate() - 90);
+    if (range === "6m") previousCutoff.setMonth(previousCutoff.getMonth() - 6);
+    if (range === "ytd") previousCutoff.setDate(previousCutoff.getDate() - (Math.floor((today.getTime() - dashboardCutoff.getTime()) / 86400000) + 1));
+    if (range === "12m") previousCutoff.setFullYear(previousCutoff.getFullYear() - 1);
+    const allPeriods = buildPeriods(item, data.completions, 24);
+    const itemPeriods = allPeriods.filter((period) => period.date >= dashboardCutoff);
     const itemElapsed = itemPeriods.filter((period) => period.state !== "future");
+    const previousElapsed = allPeriods.filter((period) => period.date >= previousCutoff && period.date < dashboardCutoff && period.state !== "future");
     const hits = itemElapsed.filter((period) => period.state === "done").length;
+    const previousHits = previousElapsed.filter((period) => period.state === "done").length;
+    const previousScore = previousElapsed.length ? Math.round(previousHits / previousElapsed.length * 100) : null;
+    const itemScore = itemElapsed.length ? Math.round(hits / itemElapsed.length * 100) : 0;
     let itemStreak = 0;
     for (let index = itemPeriods.length - 1; index >= 0; index--) {
       if (itemPeriods[index].state === "future") continue;
@@ -174,17 +186,29 @@ export default function Dashboard() {
     const recent = trend.slice(-edgeSize).reduce((sum, value) => sum + value, 0) / edgeSize;
     const trendDelta = Math.round(recent - early);
     const direction = trendDelta > 5 ? "improving" : trendDelta < -5 ? "declining" : "steady";
+    const mean = trend.reduce((sum, value) => sum + value, 0) / trend.length;
+    const deviation = Math.sqrt(trend.reduce((sum, value) => sum + (value - mean) ** 2, 0) / trend.length);
+    const stability = Math.max(0, Math.round(100 - deviation));
     return {
       habit: item, periods: itemPeriods, hits, total: itemElapsed.length, streak: itemStreak,
-      score: itemElapsed.length ? Math.round(hits / itemElapsed.length * 100) : 0,
+      score: itemScore, previousScore, comparison: previousScore === null ? null : itemScore - previousScore,
       unit: rhythmFor(item).type === "weekly" ? "weeks" : rhythmFor(item).type === "interval" ? `${rhythmFor(item).count}-day periods` : "days",
-      trend, trendDelta, direction,
+      trend, trendDelta, direction, stability,
     };
   }) || [], [data, range]);
   const overviewHits = summaries.reduce((sum, item) => sum + item.hits, 0);
   const overviewTotal = summaries.reduce((sum, item) => sum + item.total, 0);
   const overviewScore = overviewTotal ? Math.round(overviewHits / overviewTotal * 100) : 0;
   const needsAttention = summaries.filter((item) => item.score < 60).length;
+  const portfolioTrend = Array.from({ length: 8 }, (_, index) => {
+    if (!summaries.length) return 0;
+    return Math.round(summaries.reduce((sum, summary) => {
+      const sourceIndex = summary.trend.length === 1 ? 0 : Math.round(index * (summary.trend.length - 1) / 7);
+      return sum + summary.trend[sourceIndex];
+    }, 0) / summaries.length);
+  });
+  const portfolioDelta = portfolioTrend[portfolioTrend.length - 1] - portfolioTrend[0];
+  const portfolioDirection = portfolioDelta > 5 ? "improving" : portfolioDelta < -5 ? "declining" : "steady";
   const rangeLabel = RANGE_OPTIONS.find((option) => option.value === range)?.label || "Last 90 days";
   const rangeShort = RANGE_OPTIONS.find((option) => option.value === range)?.short || "90 days";
 
@@ -235,10 +259,22 @@ export default function Dashboard() {
             <article><span>TARGETS MET</span><strong>{overviewHits}</strong><small>in the last {rangeShort}</small></article>
             <article><span>NEEDS ATTENTION</span><strong className={needsAttention ? "red" : ""}>{needsAttention}</strong><small>habits below 60%</small></article>
           </div>
+          <article className={`portfolio-card ${portfolioDirection}`}>
+            <div><span>PORTFOLIO TREND</span><h2>All habits, equally weighted</h2><p>Each habit contributes the same weight, regardless of how often it is scheduled.</p></div>
+            <div className="portfolio-status"><strong>{portfolioDirection === "improving" ? "↗ Improving" : portfolioDirection === "declining" ? "↘ Declining" : "→ Steady"}</strong><small>{portfolioDelta > 0 ? "+" : ""}{portfolioDelta} points</small></div>
+            <svg viewBox="0 0 100 38" preserveAspectRatio="none" role="img" aria-label={`Portfolio trend ${portfolioDirection}`}>
+              <path d="M0 19H100" />
+              <polyline points={portfolioTrend.map((value, index) => `${index * 100 / 7},${35 - value * .32}`).join(" ")} />
+            </svg>
+          </article>
           <div className="habit-summary-grid">
             {summaries.map((summary) => <button key={summary.habit.task_id} onClick={() => setSelected(summary.habit.task_id)}>
               <div className="summary-head"><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{summary.habit.content}</strong><small>{summary.habit.project_name} · {scheduleLabel(summary.habit)}</small></span><b>{summary.score}%</b></div>
               <div className="summary-bar"><i style={{ width: `${summary.score}%` }} /></div>
+              <div className="summary-metrics">
+                <div><span>Previous period</span><strong className={summary.comparison === null ? "" : summary.comparison > 0 ? "positive" : summary.comparison < 0 ? "negative" : ""}>{summary.comparison === null ? "No data" : `${summary.comparison > 0 ? "+" : ""}${summary.comparison} pts`}</strong><small>{summary.previousScore === null ? "Syncing older history" : `${summary.previousScore}% previously`}</small></div>
+                <div><span>Stability</span><strong>{summary.stability}/100</strong><small>{summary.stability >= 80 ? "Consistent" : summary.stability >= 60 ? "Mixed" : "Volatile"}</small></div>
+              </div>
               <div className={`summary-trend ${summary.direction}`}>
                 <div><span>Trend</span><strong>{summary.direction === "improving" ? "↗ Improving" : summary.direction === "declining" ? "↘ Declining" : "→ Steady"}</strong></div>
                 <svg viewBox="0 0 100 30" preserveAspectRatio="none" role="img" aria-label={`${summary.direction} trend, ${summary.trendDelta > 0 ? "+" : ""}${summary.trendDelta} percentage points`}>

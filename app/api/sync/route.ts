@@ -90,7 +90,7 @@ export async function runSync(userId: string) {
   });
   saveHabits(habits);
 
-  const since = new Date(); since.setFullYear(since.getFullYear() - 1); since.setDate(since.getDate() - 7);
+  const since = new Date(); since.setFullYear(since.getFullYear() - 2); since.setDate(since.getDate() - 7);
   const until = new Date(); until.setDate(until.getDate() + 1);
   let completed: Completed[];
   let completionSource = "activity";
