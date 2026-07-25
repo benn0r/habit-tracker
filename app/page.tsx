@@ -12,7 +12,7 @@ export default async function Home() {
     <main className="landing">
       <nav className="nav">
         <Link className="brand" href="/"><span className="brandmark">H</span> Habit Tracker</Link>
-        <a className="button ghost" href={destination}>{loggedIn ? "Open dashboard" : "Log in"}</a>
+        <a className={`button ghost${loggedIn ? " mobile-hide" : ""}`} href={destination}>{loggedIn ? "Open dashboard" : "Log in"}</a>
       </nav>
       <section className="hero">
         <div className="eyebrow"><span /> BUILT FOR TODOIST</div>
