@@ -17,7 +17,6 @@ type Period = {
 type Rhythm = { type: "daily" | "interval" | "weekly"; count: number };
 type View = "heatmap" | "trend" | "history";
 const ALL_HABITS = "all";
-const BUILD_NUMBER = (process.env.NEXT_PUBLIC_APP_VERSION || "dev").slice(0, 7);
 
 const keyOf = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -188,7 +187,6 @@ export default function Dashboard() {
           </div>
           <button className="sync" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span> {syncing ? "Syncing…" : "Sync Todoist"}</button>
           <div className="profile"><div className="avatar">{data.user.avatar ? <img src={data.user.avatar} alt="" /> : initials}</div><span><strong>{data.user.name}</strong><small>{data.user.email}</small></span><form action="/api/auth/logout" method="post"><button title="Log out">↗</button></form></div>
-          <div className="build-number">Habit Tracker · build {BUILD_NUMBER}</div>
         </div>
       </aside>
       <section className="dashboard">
@@ -204,7 +202,7 @@ export default function Dashboard() {
             {summaries.map((summary) => <button key={summary.habit.task_id} onClick={() => setSelected(summary.habit.task_id)}>
               <div className="summary-head"><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{summary.habit.content}</strong><small>{summary.habit.project_name} · {scheduleLabel(summary.habit)}</small></span><b>{summary.score}%</b></div>
               <div className="summary-bar"><i style={{ width: `${summary.score}%` }} /></div>
-              <div className="summary-recent">{summary.periods.slice(-28).map((period) => <i key={period.key} className={period.state} title={period.label} />)}</div>
+              <div className="summary-recent">{summary.periods.map((period) => <i key={period.key} className={period.state} title={period.label} />)}</div>
               <div className="summary-foot"><span>{summary.hits} targets met</span><span>{summary.streak} {summary.unit} streak</span><strong>View habit →</strong></div>
             </button>)}
           </div>
