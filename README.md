@@ -75,7 +75,7 @@ survive container replacement.
 ## Coolify deployment
 
 1. Create a **Docker Image** application using:
-   `git.example.com/example-user/habit-tracker:main`.
+   `registry.example.com/your-account/habit-tracker:main`.
 2. Expose port `3000`.
 3. Configure the environment variables listed above.
 4. Add native Coolify **Persistent Storage** with destination `/data`.
@@ -102,12 +102,13 @@ The Gitea Actions workflow installs dependencies, runs the production build,
 audits production dependencies, and publishes:
 
 ```text
-git.example.com/example-user/habit-tracker
+registry.example.com/your-account/habit-tracker
 ```
 
 Every branch receives a sanitized branch tag. `main` publishes `:main` and
 removes obsolete package versions. Add a repository Actions secret named
 `REGISTRY_TOKEN` containing a Gitea token with package read/write permission.
+The registry host and package owner are derived from the Gitea runtime context.
 The workflow embeds `gitea.sha` into the image as its deployment build number.
 
 ## Data and privacy
