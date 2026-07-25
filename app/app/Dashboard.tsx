@@ -16,7 +16,15 @@ type Period = {
 };
 type Rhythm = { type: "daily" | "interval" | "weekly"; count: number };
 type View = "heatmap" | "trend" | "history";
+type Range = "30d" | "90d" | "6m" | "ytd" | "12m";
 const ALL_HABITS = "all";
+const RANGE_OPTIONS: { value: Range; label: string; short: string }[] = [
+  { value: "30d", label: "Last 30 days", short: "30 days" },
+  { value: "90d", label: "Last 90 days", short: "90 days" },
+  { value: "6m", label: "Last 6 months", short: "6 months" },
+  { value: "ytd", label: "Year to date", short: "year to date" },
+  { value: "12m", label: "Last 12 months", short: "12 months" },
+];
 
 const keyOf = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -79,6 +87,9 @@ export default function Dashboard() {
   const [settings, setSettings] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [view, setView] = useState<View>("heatmap");
+  const [range, setRange] = useState<Range>("90d");
+  const habit = data?.habits.find((h) => h.task_id === selected);
+  const isOverview = selected === ALL_HABITS;
   const load = () => fetch("/api/dashboard").then((r) => r.json()).then((d) => {
     setData(d);
     setSelected((current) => {
@@ -87,6 +98,8 @@ export default function Dashboard() {
     });
   });
   useEffect(() => {
+    const requestedRange = new URLSearchParams(window.location.search).get("range");
+    if (RANGE_OPTIONS.some((option) => option.value === requestedRange)) setRange(requestedRange as Range);
     load();
     if (new URLSearchParams(window.location.search).get("sync") !== "1") return;
     setSyncing(true);
@@ -105,8 +118,12 @@ export default function Dashboard() {
     url.searchParams.set("habit", selected);
     window.history.replaceState({}, "", url);
   }, [selected]);
-  const habit = data?.habits.find((h) => h.task_id === selected);
-  const isOverview = selected === ALL_HABITS;
+  useEffect(() => {
+    if (!isOverview) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("range", range);
+    window.history.replaceState({}, "", url);
+  }, [range, isOverview]);
   const periods = useMemo(() => habit && data ? buildPeriods(habit, data.completions) : [], [habit, data]);
   const rhythm = habit ? rhythmFor(habit) : { type: "daily" as const, count: 1 };
   const elapsed = periods.filter((d) => d.state !== "future");
@@ -131,7 +148,11 @@ export default function Dashboard() {
   }, [elapsed]);
   const summaries = useMemo(() => data?.habits.map((item) => {
     const dashboardCutoff = startOfDay(new Date());
-    dashboardCutoff.setDate(dashboardCutoff.getDate() - 89);
+    if (range === "30d") dashboardCutoff.setDate(dashboardCutoff.getDate() - 29);
+    if (range === "90d") dashboardCutoff.setDate(dashboardCutoff.getDate() - 89);
+    if (range === "6m") dashboardCutoff.setMonth(dashboardCutoff.getMonth() - 6);
+    if (range === "ytd") dashboardCutoff.setMonth(0, 1);
+    if (range === "12m") dashboardCutoff.setFullYear(dashboardCutoff.getFullYear() - 1);
     const itemPeriods = buildPeriods(item, data.completions).filter((period) => period.date >= dashboardCutoff);
     const itemElapsed = itemPeriods.filter((period) => period.state !== "future");
     const hits = itemElapsed.filter((period) => period.state === "done").length;
@@ -146,11 +167,13 @@ export default function Dashboard() {
       score: itemElapsed.length ? Math.round(hits / itemElapsed.length * 100) : 0,
       unit: rhythmFor(item).type === "weekly" ? "weeks" : rhythmFor(item).type === "interval" ? `${rhythmFor(item).count}-day periods` : "days",
     };
-  }) || [], [data]);
+  }) || [], [data, range]);
   const overviewHits = summaries.reduce((sum, item) => sum + item.hits, 0);
   const overviewTotal = summaries.reduce((sum, item) => sum + item.total, 0);
   const overviewScore = overviewTotal ? Math.round(overviewHits / overviewTotal * 100) : 0;
   const needsAttention = summaries.filter((item) => item.score < 60).length;
+  const rangeLabel = RANGE_OPTIONS.find((option) => option.value === range)?.label || "Last 90 days";
+  const rangeShort = RANGE_OPTIONS.find((option) => option.value === range)?.short || "90 days";
 
   async function sync() {
     setSyncing(true);
@@ -191,11 +214,12 @@ export default function Dashboard() {
       </aside>
       <section className="dashboard">
         {isOverview ? <>
-          <header><div><div className="eyebrow"><span /> LAST 90 DAYS</div><h1>Your dashboard</h1><p>A recent view of every rhythm you’re tracking.</p></div><button className="button ghost compact adjust-rhythm" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span>{syncing ? "Syncing…" : "Sync Todoist"}</button></header>
+          <header><div><div className="eyebrow"><span /> {rangeLabel.toUpperCase()}</div><h1>Your dashboard</h1><p>A recent view of every rhythm you’re tracking.</p></div><button className="button ghost compact adjust-rhythm" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span>{syncing ? "Syncing…" : "Sync Todoist"}</button></header>
+          <div className="range-picker" role="group" aria-label="Dashboard time range">{RANGE_OPTIONS.map((option) => <button key={option.value} className={range === option.value ? "active" : ""} onClick={() => setRange(option.value)}>{option.label}</button>)}</div>
           <div className="stats overview-stats">
             <article><span>OVERALL CONSISTENCY</span><strong>{overviewScore}<em>%</em></strong><small>across all completed periods</small></article>
             <article><span>ACTIVE HABITS</span><strong>{summaries.length}</strong><small>currently tagged in Todoist</small></article>
-            <article><span>TARGETS MET</span><strong>{overviewHits}</strong><small>in the last 90 days</small></article>
+            <article><span>TARGETS MET</span><strong>{overviewHits}</strong><small>in the last {rangeShort}</small></article>
             <article><span>NEEDS ATTENTION</span><strong className={needsAttention ? "red" : ""}>{needsAttention}</strong><small>habits below 60%</small></article>
           </div>
           <div className="habit-summary-grid">
