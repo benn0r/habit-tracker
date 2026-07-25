@@ -15,7 +15,7 @@ number of completions per week.
 
 - Todoist OAuth with read-only `data:read` access
 - Automatic discovery of active tasks tagged `habit`
-- Three-month all-habits summary dashboard
+- Exact 90-day all-habits summary dashboard
 - Twelve-month detail views with heatmap, monthly trend, and recent history tabs
 - Daily, interval, and one-to-seven-times-per-week rhythm overrides
 - Completion history imported from Todoist activity

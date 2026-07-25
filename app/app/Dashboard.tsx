@@ -87,7 +87,19 @@ export default function Dashboard() {
       return current || (requested && (requested === ALL_HABITS || d.habits?.some((h: Habit) => h.task_id === requested)) ? requested : ALL_HABITS);
     });
   });
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    if (new URLSearchParams(window.location.search).get("sync") !== "1") return;
+    setSyncing(true);
+    fetch("/api/sync", { method: "POST" })
+      .then(() => load())
+      .finally(() => {
+        setSyncing(false);
+        const url = new URL(window.location.href);
+        url.searchParams.delete("sync");
+        window.history.replaceState({}, "", url);
+      });
+  }, []);
   useEffect(() => {
     if (!selected) return;
     const url = new URL(window.location.href);
@@ -120,7 +132,7 @@ export default function Dashboard() {
   }, [elapsed]);
   const summaries = useMemo(() => data?.habits.map((item) => {
     const dashboardCutoff = startOfDay(new Date());
-    dashboardCutoff.setMonth(dashboardCutoff.getMonth() - 3);
+    dashboardCutoff.setDate(dashboardCutoff.getDate() - 89);
     const itemPeriods = buildPeriods(item, data.completions).filter((period) => period.date >= dashboardCutoff);
     const itemElapsed = itemPeriods.filter((period) => period.state !== "future");
     const hits = itemElapsed.filter((period) => period.state === "done").length;
@@ -181,11 +193,11 @@ export default function Dashboard() {
       </aside>
       <section className="dashboard">
         {isOverview ? <>
-          <header><div><div className="eyebrow"><span /> LAST 3 MONTHS</div><h1>Your dashboard</h1><p>A recent view of every rhythm you’re tracking.</p></div><button className="button ghost compact adjust-rhythm" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span>{syncing ? "Syncing…" : "Sync Todoist"}</button></header>
+          <header><div><div className="eyebrow"><span /> LAST 90 DAYS</div><h1>Your dashboard</h1><p>A recent view of every rhythm you’re tracking.</p></div><button className="button ghost compact adjust-rhythm" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span>{syncing ? "Syncing…" : "Sync Todoist"}</button></header>
           <div className="stats overview-stats">
             <article><span>OVERALL CONSISTENCY</span><strong>{overviewScore}<em>%</em></strong><small>across all completed periods</small></article>
             <article><span>ACTIVE HABITS</span><strong>{summaries.length}</strong><small>currently tagged in Todoist</small></article>
-            <article><span>TARGETS MET</span><strong>{overviewHits}</strong><small>in the last 3 months</small></article>
+            <article><span>TARGETS MET</span><strong>{overviewHits}</strong><small>in the last 90 days</small></article>
             <article><span>NEEDS ATTENTION</span><strong className={needsAttention ? "red" : ""}>{needsAttention}</strong><small>habits below 60%</small></article>
           </div>
           <div className="habit-summary-grid">
