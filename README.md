@@ -1,5 +1,8 @@
 # Habit Tracker
 
+> [!IMPORTANT]
+> **This entire repository—including the application, design, tests, documentation, and deployment setup—was made with AI.**
+
 A Todoist-powered habit dashboard that turns recurring tasks tagged `habit`
 into an honest history of completed and missed periods. Habit Tracker supports
 Todoist schedules as well as custom rhythms such as every two days or a target
