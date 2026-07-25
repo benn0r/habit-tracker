@@ -162,10 +162,23 @@ export default function Dashboard() {
       if (itemPeriods[index].state === "done") itemStreak++;
       else break;
     }
+    const bucketCount = Math.min(8, Math.max(1, itemElapsed.length));
+    const trend = Array.from({ length: bucketCount }, (_, index) => {
+      const start = Math.floor(index * itemElapsed.length / bucketCount);
+      const end = Math.floor((index + 1) * itemElapsed.length / bucketCount);
+      const bucket = itemElapsed.slice(start, end);
+      return bucket.length ? Math.round(bucket.filter((period) => period.state === "done").length / bucket.length * 100) : 0;
+    });
+    const edgeSize = Math.min(2, Math.max(1, Math.floor(trend.length / 2)));
+    const early = trend.slice(0, edgeSize).reduce((sum, value) => sum + value, 0) / edgeSize;
+    const recent = trend.slice(-edgeSize).reduce((sum, value) => sum + value, 0) / edgeSize;
+    const trendDelta = Math.round(recent - early);
+    const direction = trendDelta > 5 ? "improving" : trendDelta < -5 ? "declining" : "steady";
     return {
       habit: item, periods: itemPeriods, hits, total: itemElapsed.length, streak: itemStreak,
       score: itemElapsed.length ? Math.round(hits / itemElapsed.length * 100) : 0,
       unit: rhythmFor(item).type === "weekly" ? "weeks" : rhythmFor(item).type === "interval" ? `${rhythmFor(item).count}-day periods` : "days",
+      trend, trendDelta, direction,
     };
   }) || [], [data, range]);
   const overviewHits = summaries.reduce((sum, item) => sum + item.hits, 0);
@@ -226,6 +239,13 @@ export default function Dashboard() {
             {summaries.map((summary) => <button key={summary.habit.task_id} onClick={() => setSelected(summary.habit.task_id)}>
               <div className="summary-head"><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{summary.habit.content}</strong><small>{summary.habit.project_name} · {scheduleLabel(summary.habit)}</small></span><b>{summary.score}%</b></div>
               <div className="summary-bar"><i style={{ width: `${summary.score}%` }} /></div>
+              <div className={`summary-trend ${summary.direction}`}>
+                <div><span>Trend</span><strong>{summary.direction === "improving" ? "↗ Improving" : summary.direction === "declining" ? "↘ Declining" : "→ Steady"}</strong></div>
+                <svg viewBox="0 0 100 30" preserveAspectRatio="none" role="img" aria-label={`${summary.direction} trend, ${summary.trendDelta > 0 ? "+" : ""}${summary.trendDelta} percentage points`}>
+                  <path className="trend-guide" d="M0 15H100" />
+                  <polyline points={summary.trend.map((value, index) => `${summary.trend.length === 1 ? 50 : index * 100 / (summary.trend.length - 1)},${28 - value * .26}`).join(" ")} />
+                </svg>
+              </div>
               <div className="summary-recent">{summary.periods.map((period) => <i key={period.key} className={period.state} title={period.label} />)}</div>
               <div className="summary-foot"><span>{summary.hits} targets met</span><span>{summary.streak} {summary.unit} streak</span><strong>View habit →</strong></div>
             </button>)}
