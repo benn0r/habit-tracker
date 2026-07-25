@@ -131,6 +131,32 @@ export default function Dashboard() {
   const score = elapsed.length ? Math.round(completed / elapsed.length * 100) : 0;
   const streak = (() => { let n = 0; for (let i = periods.length - 1; i >= 0; i--) { if (periods[i].state === "future") continue; if (periods[i].state === "done") n++; else break; } return n; })();
   const unit = rhythm.type === "weekly" ? "weeks" : rhythm.type === "interval" ? `${rhythm.count}-day periods` : "days";
+  const detailAnalytics = useMemo(() => {
+    if (!habit || !data) return { trend: [0], direction: "steady", delta: 0, stability: 100, previousScore: null as number | null, comparison: null as number | null };
+    const cutoff = startOfDay(new Date()); cutoff.setFullYear(cutoff.getFullYear() - 1); cutoff.setDate(cutoff.getDate() + 1);
+    const previousCutoff = new Date(cutoff); previousCutoff.setFullYear(previousCutoff.getFullYear() - 1);
+    const all = buildPeriods(habit, data.completions, 24);
+    const current = all.filter((period) => period.date >= cutoff && period.state !== "future");
+    const previous = all.filter((period) => period.date >= previousCutoff && period.date < cutoff && period.state !== "future");
+    const bucketCount = Math.min(10, Math.max(1, current.length));
+    const trend = Array.from({ length: bucketCount }, (_, index) => {
+      const start = Math.floor(index * current.length / bucketCount);
+      const end = Math.floor((index + 1) * current.length / bucketCount);
+      const bucket = current.slice(start, end);
+      return bucket.length ? Math.round(bucket.filter((period) => period.state === "done").length / bucket.length * 100) : 0;
+    });
+    const edgeSize = Math.min(2, Math.max(1, Math.floor(trend.length / 2)));
+    const early = trend.slice(0, edgeSize).reduce((sum, value) => sum + value, 0) / edgeSize;
+    const recent = trend.slice(-edgeSize).reduce((sum, value) => sum + value, 0) / edgeSize;
+    const delta = Math.round(recent - early);
+    const direction = delta > 5 ? "improving" : delta < -5 ? "declining" : "steady";
+    const mean = trend.reduce((sum, value) => sum + value, 0) / trend.length;
+    const deviation = Math.sqrt(trend.reduce((sum, value) => sum + (value - mean) ** 2, 0) / trend.length);
+    const stability = Math.max(0, Math.round(100 - deviation));
+    const previousHits = previous.filter((period) => period.state === "done").length;
+    const previousScore = previous.length ? Math.round(previousHits / previous.length * 100) : null;
+    return { trend, direction, delta, stability, previousScore, comparison: previousScore === null ? null : score - previousScore };
+  }, [habit, data, score]);
   const monthly = useMemo(() => {
     const result: { key: string; label: string; hit: number; total: number; score: number }[] = [];
     for (const period of elapsed) {
@@ -295,6 +321,15 @@ export default function Dashboard() {
             <article><span>CURRENT STREAK</span><strong>{streak}<em> {unit}</em></strong><small>{streak ? "keep the rhythm going" : "this period is a fresh start"}</small></article>
             <article><span>MISSED</span><strong className="red">{elapsed.length - completed}</strong><small>{unit} below target</small></article>
           </div>
+          <article className={`detail-analytics ${detailAnalytics.direction}`}>
+            <div className="detail-analytic-copy"><span>12-MONTH TREND</span><strong>{detailAnalytics.direction === "improving" ? "↗ Improving" : detailAnalytics.direction === "declining" ? "↘ Declining" : "→ Steady"}</strong><small>{detailAnalytics.delta > 0 ? "+" : ""}{detailAnalytics.delta} points from early to recent periods</small></div>
+            <svg viewBox="0 0 100 34" preserveAspectRatio="none" role="img" aria-label={`${detailAnalytics.direction} yearly trend`}>
+              <path d="M0 17H100" />
+              <polyline points={detailAnalytics.trend.map((value, index) => `${detailAnalytics.trend.length === 1 ? 50 : index * 100 / (detailAnalytics.trend.length - 1)},${31 - value * .28}`).join(" ")} />
+            </svg>
+            <div className="detail-analytic-stat"><span>STABILITY</span><strong>{detailAnalytics.stability}<em>/100</em></strong><small>{detailAnalytics.stability >= 80 ? "Consistent" : detailAnalytics.stability >= 60 ? "Mixed" : "Volatile"}</small></div>
+            <div className="detail-analytic-stat"><span>VS PREVIOUS YEAR</span><strong className={detailAnalytics.comparison === null ? "" : detailAnalytics.comparison > 0 ? "positive" : detailAnalytics.comparison < 0 ? "negative" : ""}>{detailAnalytics.comparison === null ? "—" : `${detailAnalytics.comparison > 0 ? "+" : ""}${detailAnalytics.comparison}`}<em>{detailAnalytics.comparison === null ? "" : " pts"}</em></strong><small>{detailAnalytics.previousScore === null ? "No previous data yet" : `${detailAnalytics.previousScore}% in the prior 12 months`}</small></div>
+          </article>
           <article className="chart-card">
             <div className="chart-title"><div><span>LAST 12 MONTHS</span><h2>{view === "heatmap" ? "Your year at a glance" : view === "trend" ? "Monthly consistency" : "Recent check-ins"}</h2></div>{view === "heatmap" && <div className="chart-legend"><i className="done" /> Target met <i className="miss" /> Missed <i className="none" /> Current period</div>}</div>
             <div className="view-tabs" role="tablist" aria-label="Habit visualization">
