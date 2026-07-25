@@ -119,6 +119,17 @@ export default function Dashboard() {
     window.history.replaceState({}, "", url);
   }, [selected]);
   useEffect(() => {
+    if (!data) return;
+    const restoreSelection = () => {
+      const requested = new URLSearchParams(window.location.search).get("habit");
+      setSelected(requested && (requested === ALL_HABITS || data.habits.some((h) => h.task_id === requested)) ? requested : ALL_HABITS);
+      setMenuOpen(false);
+      setSettings(false);
+    };
+    window.addEventListener("popstate", restoreSelection);
+    return () => window.removeEventListener("popstate", restoreSelection);
+  }, [data]);
+  useEffect(() => {
     if (!isOverview) return;
     const url = new URL(window.location.href);
     url.searchParams.set("range", range);
@@ -255,6 +266,14 @@ export default function Dashboard() {
   const scheduleIs = (type: string, count?: number) =>
     type === "todoist" ? !habit?.override_type :
     habit?.override_type === type && (count === undefined || habit.override_count === count);
+  const selectHabit = (taskId: string) => {
+    setMenuOpen(false);
+    if (taskId === selected) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("habit", taskId);
+    window.history.pushState({}, "", url);
+    setSelected(taskId);
+  };
 
   if (!data) return <div className="loading"><span className="brandmark">H</span><p>Reading your habits…</p></div>;
   const initials = data.user.name.split(" ").map((x) => x[0]).join("").slice(0, 2);
@@ -268,8 +287,8 @@ export default function Dashboard() {
         <div className="side-content">
           <div className="side-label">YOUR HABITS</div>
           <div className="habit-nav">
-            <button className={`overview-link ${isOverview ? "active" : ""}`} onClick={() => { setSelected(ALL_HABITS); setMenuOpen(false); }}><span className="habit-icon overview-icon">▦</span><span><strong>All habits</strong><small>Dashboard overview</small></span></button>
-            {data.habits.map((h) => <button key={h.task_id} className={selected === h.task_id ? "active" : ""} onClick={() => { setSelected(h.task_id); setMenuOpen(false); }}><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{h.content}</strong><small>{scheduleLabel(h)}</small></span></button>)}
+            <button className={`overview-link ${isOverview ? "active" : ""}`} onClick={() => selectHabit(ALL_HABITS)}><span className="habit-icon overview-icon">▦</span><span><strong>All habits</strong><small>Dashboard overview</small></span></button>
+            {data.habits.map((h) => <button key={h.task_id} className={selected === h.task_id ? "active" : ""} onClick={() => selectHabit(h.task_id)}><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{h.content}</strong><small>{scheduleLabel(h)}</small></span></button>)}
           </div>
           <button className="sync" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span> {syncing ? "Syncing…" : "Sync Todoist"}</button>
           <div className="profile"><div className="avatar">{data.user.avatar ? <img src={data.user.avatar} alt="" /> : initials}</div><span><strong>{data.user.name}</strong><small>{data.user.email}</small></span><form action="/api/auth/logout" method="post"><button title="Log out">↗</button></form></div>
@@ -294,7 +313,7 @@ export default function Dashboard() {
             </svg>
           </article>
           <div className="habit-summary-grid">
-            {summaries.map((summary) => <button key={summary.habit.task_id} onClick={() => setSelected(summary.habit.task_id)}>
+            {summaries.map((summary) => <button key={summary.habit.task_id} onClick={() => selectHabit(summary.habit.task_id)}>
               <div className="summary-head"><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{summary.habit.content}</strong><small>{summary.habit.project_name} · {scheduleLabel(summary.habit)}</small></span><b>{summary.score}%</b></div>
               <div className="summary-bar"><i style={{ width: `${summary.score}%` }} /></div>
               <div className="summary-metrics">
