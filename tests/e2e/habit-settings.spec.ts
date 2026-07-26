@@ -33,9 +33,11 @@ test("customizes and resets a habit label", async ({ context, page }) => {
   await page.getByRole("button", { name: "Habit settings" }).click();
   await expect(page.getByRole("heading", { name: "Make it yours" })).toBeVisible();
   await expect(page.getByText("Rhythm", { exact: true })).toBeVisible();
-  await expect(page.locator(".primary-choices>button")).toHaveCount(10);
-  await expect(page.locator(".primary-choices").getByText("1 per week", { exact: true })).toBeVisible();
-  await expect(page.locator(".primary-choices").getByText("7 per week", { exact: true })).toBeVisible();
+  await expect(page.locator(".primary-choices>button")).toHaveCount(9);
+  await expect(page.locator(".primary-choices").getByText("Once per week", { exact: true })).toBeVisible();
+  await expect(page.locator(".primary-choices").getByText("Twice per week", { exact: true })).toBeVisible();
+  await expect(page.locator(".primary-choices").getByText("Six times per week", { exact: true })).toBeVisible();
+  await expect(page.locator(".primary-choices").getByText("7 per week", { exact: true })).toHaveCount(0);
   await expect(page.locator(".weekly-choices")).toHaveCount(0);
   await page.getByLabel("Tracking start date").fill("2026-08-10");
   await page.getByRole("button", { name: "Save date" }).click();

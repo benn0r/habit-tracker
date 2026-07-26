@@ -26,6 +26,7 @@ type SyncResponse = { code?: string; error?: string };
 const ALL_HABITS = "all";
 const LAST_APP_VISIT_KEY = "habit-tracker:last-app-visit";
 const AUTO_SYNC_AFTER_MS = 4 * 60 * 60 * 1000;
+const WEEKLY_OPTIONS = ["Once per week", "Twice per week", "Three times per week", "Four times per week", "Five times per week", "Six times per week"];
 const RANGE_OPTIONS: { value: Range; label: string; short: string }[] = [
   { value: "30d", label: "Last 30 days", short: "30 days" },
   { value: "90d", label: "Last 90 days", short: "90 days" },
@@ -468,7 +469,7 @@ export default function Dashboard() {
         </section>
         <section className="settings-section rhythm-setting">
           <div className="settings-heading"><strong>Rhythm</strong><small>How often this habit should count</small></div>
-          <div className="choices primary-choices"><button className={scheduleIs("todoist") ? "selected" : ""} onClick={() => saveSchedule("todoist")}><i>↻</i><span><strong>Use Todoist schedule</strong><small>{habit.todoist_recurrence || "No recurring due date"}</small></span><b>✓</b></button><button className={scheduleIs("daily") ? "selected" : ""} onClick={() => saveSchedule("daily")}><i>1d</i><span><strong>Every day</strong><small>One completion each day</small></span><b>✓</b></button><button className={scheduleIs("interval", 2) ? "selected" : ""} onClick={() => saveSchedule("interval", 2)}><i>2d</i><span><strong>Every two days</strong><small>One completion per two-day period</small></span><b>✓</b></button>{[1, 2, 3, 4, 5, 6, 7].map((count) => <button className={scheduleIs("weekly", count) ? "selected" : ""} key={count} onClick={() => saveSchedule("weekly", count)}><i>{count}×</i><span><strong>{count} per week</strong><small>Any days, Monday–Sunday</small></span><b>✓</b></button>)}</div>
+          <div className="choices primary-choices"><button className={scheduleIs("todoist") ? "selected" : ""} onClick={() => saveSchedule("todoist")}><i>↻</i><span><strong>Use Todoist schedule</strong><small>{habit.todoist_recurrence || "No recurring due date"}</small></span><b>✓</b></button><button className={scheduleIs("daily") ? "selected" : ""} onClick={() => saveSchedule("daily")}><i>1d</i><span><strong>Every day</strong><small>One completion each day</small></span><b>✓</b></button><button className={scheduleIs("interval", 2) ? "selected" : ""} onClick={() => saveSchedule("interval", 2)}><i>2d</i><span><strong>Every two days</strong><small>One completion per two-day period</small></span><b>✓</b></button>{WEEKLY_OPTIONS.map((label, index) => { const count = index + 1; return <button className={scheduleIs("weekly", count) ? "selected" : ""} key={count} onClick={() => saveSchedule("weekly", count)}><i>{count}×</i><span><strong>{label}</strong><small>Any days, Monday–Sunday</small></span><b>✓</b></button>; })}</div>
         </section>
       </div></div>}
     </main>
