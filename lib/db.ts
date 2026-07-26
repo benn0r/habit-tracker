@@ -19,6 +19,7 @@ export function getDb() {
     CREATE TABLE IF NOT EXISTS habits (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       task_id TEXT NOT NULL, content TEXT NOT NULL, todoist_recurrence TEXT,
+      label_override TEXT,
       override_type TEXT, override_count INTEGER, override_period TEXT,
       project_name TEXT, color TEXT DEFAULT '#ff6b57', active INTEGER DEFAULT 1,
       PRIMARY KEY (user_id, task_id)
@@ -37,6 +38,10 @@ export function getDb() {
     CREATE INDEX IF NOT EXISTS idx_completions_user_date ON completions(user_id, completed_at);
     CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
   `);
+  const habitColumns = db.prepare("PRAGMA table_info(habits)").all() as { name: string }[];
+  if (!habitColumns.some((column) => column.name === "label_override")) {
+    db.exec("ALTER TABLE habits ADD COLUMN label_override TEXT");
+  }
   global.habitDb = db;
   return db;
 }

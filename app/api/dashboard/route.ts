@@ -8,7 +8,11 @@ export async function GET() {
   if (process.env.E2E_TEST_MODE === "1" && userId === "e2e-user") {
     return NextResponse.json({
       user: { name: "Fantasy Athlete", email: "athlete@example.test" },
-      habits: [],
+      habits: [{
+        task_id: "e2e-habit", content: "Sport", label_override: null,
+        todoist_recurrence: "every week", override_type: null,
+        override_count: null, override_period: null, project_name: "Training", color: "#ff6b57",
+      }],
       completions: [],
     });
   }

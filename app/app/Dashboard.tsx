@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 type Habit = {
   task_id: string; content: string; todoist_recurrence: string | null;
+  label_override: string | null;
   override_type: string | null; override_count: number | null; override_period: string | null;
   project_name: string; color: string;
 };
@@ -37,6 +38,8 @@ function scheduleLabel(h: Habit) {
   if (h.override_type === "daily") return "Every day";
   return h.todoist_recurrence || "No repeat";
 }
+
+const displayLabel = (habit: Habit) => habit.label_override || habit.content;
 
 function rhythmFor(h: Habit): Rhythm {
   if (h.override_type === "weekly") return { type: "weekly", count: h.override_count || 1 };
@@ -86,6 +89,8 @@ export default function Dashboard() {
   const [selected, setSelected] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [labelOverride, setLabelOverride] = useState("");
+  const [labelSaved, setLabelSaved] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [view, setView] = useState<View>("heatmap");
   const [range, setRange] = useState<Range>("90d");
@@ -276,6 +281,23 @@ export default function Dashboard() {
     });
     await load(); setSettings(false);
   }
+  const openSettings = () => {
+    if (!habit) return;
+    setLabelOverride(habit.label_override || "");
+    setLabelSaved(false);
+    setSettings(true);
+  };
+  async function saveLabel() {
+    if (!habit) return;
+    const response = await fetch(`/api/habits/${encodeURIComponent(habit.task_id)}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: labelOverride }),
+    });
+    if (!response.ok) throw new Error((await response.json()).error || "Could not save label");
+    await load();
+    setLabelOverride(labelOverride.trim());
+    setLabelSaved(true);
+  }
   const scheduleIs = (type: string, count?: number) =>
     type === "todoist" ? !habit?.override_type :
     habit?.override_type === type && (count === undefined || habit.override_count === count);
@@ -301,7 +323,7 @@ export default function Dashboard() {
           <div className="side-label">YOUR HABITS</div>
           <div className="habit-nav">
             <button className={`overview-link ${isOverview ? "active" : ""}`} onClick={() => selectHabit(ALL_HABITS)}><span className="habit-icon overview-icon">▦</span><span><strong>All habits</strong><small>Dashboard overview</small></span></button>
-            {data.habits.map((h) => <button key={h.task_id} className={selected === h.task_id ? "active" : ""} onClick={() => selectHabit(h.task_id)}><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{h.content}</strong><small>{scheduleLabel(h)}</small></span></button>)}
+            {data.habits.map((h) => <button key={h.task_id} className={selected === h.task_id ? "active" : ""} onClick={() => selectHabit(h.task_id)}><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{displayLabel(h)}</strong><small>{scheduleLabel(h)}</small></span></button>)}
           </div>
           <button className="sync" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span> {syncing ? "Syncing…" : "Sync Todoist"}</button>
           <div className="profile"><div className="avatar">{data.user.avatar ? <img src={data.user.avatar} alt="" /> : initials}</div><span><strong>{data.user.name}</strong><small>{data.user.email}</small></span><form action="/api/auth/logout" method="post"><button title="Log out">↗</button></form></div>
@@ -327,7 +349,7 @@ export default function Dashboard() {
           </article>
           <div className="habit-summary-grid">
             {summaries.map((summary) => <button key={summary.habit.task_id} onClick={() => selectHabit(summary.habit.task_id)}>
-              <div className="summary-head"><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{summary.habit.content}</strong><small>{summary.habit.project_name} · {scheduleLabel(summary.habit)}</small></span><b>{summary.score}%</b></div>
+              <div className="summary-head"><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{displayLabel(summary.habit)}</strong><small>{summary.habit.project_name} · {scheduleLabel(summary.habit)}</small></span><b>{summary.score}%</b></div>
               <div className="summary-bar"><i style={{ width: `${summary.score}%` }} /></div>
               <div className="summary-metrics">
                 <div><span>Previous period</span><strong className={summary.comparison === null ? "" : summary.comparison > 0 ? "positive" : summary.comparison < 0 ? "negative" : ""}>{summary.comparison === null ? "No data" : `${summary.comparison > 0 ? "+" : ""}${summary.comparison} pts`}</strong><small>{summary.previousScore === null ? "Syncing older history" : `${summary.previousScore}% previously`}</small></div>
@@ -346,7 +368,7 @@ export default function Dashboard() {
           </div>
           <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"} · Read-only Todoist access</p>
         </> : habit ? <>
-          <header><div><div className="eyebrow"><span /> HABIT OVERVIEW</div><h1>{habit.content}</h1><p>{habit.project_name} <b>·</b> {scheduleLabel(habit)}</p></div><button className="button ghost compact adjust-rhythm" onClick={() => setSettings(true)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm9 4.2v-1.4l-2.1-.8a7 7 0 0 0-.7-1.7l.9-2-1-1-2 .9a7 7 0 0 0-1.7-.7L13.6 4h-1.4l-.8 2.1a7 7 0 0 0-1.7.7l-2-.9-1 1 .9 2a7 7 0 0 0-.7 1.7l-2.1.8v1.4l2.1.8a7 7 0 0 0 .7 1.7l-.9 2 1 1 2-.9a7 7 0 0 0 1.7.7l.8 2.1h1.4l.8-2.1a7 7 0 0 0 1.7-.7l2 .9 1-1-.9-2a7 7 0 0 0 .7-1.7l2.1-.8Z" /></svg>Adjust rhythm</button></header>
+          <header><div><div className="eyebrow"><span /> HABIT OVERVIEW</div><h1>{displayLabel(habit)}</h1><p>{habit.project_name} <b>·</b> {scheduleLabel(habit)}</p></div><button className="button ghost compact adjust-rhythm" onClick={openSettings}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm9 4.2v-1.4l-2.1-.8a7 7 0 0 0-.7-1.7l.9-2-1-1-2 .9a7 7 0 0 0-1.7-.7L13.6 4h-1.4l-.8 2.1a7 7 0 0 0-1.7.7l-2-.9-1 1 .9 2a7 7 0 0 0-.7 1.7l-2.1.8v1.4l2.1.8a7 7 0 0 0 .7 1.7l-.9 2 1 1 2-.9a7 7 0 0 0 1.7.7l.8 2.1h1.4l.8-2.1a7 7 0 0 0 1.7-.7l2 .9 1-1-.9-2a7 7 0 0 0 .7-1.7l2.1-.8Z" /></svg>Habit settings</button></header>
           <div className="stats">
             <article><span>CONSISTENCY</span><strong>{score}<em>%</em></strong><small>across completed periods</small></article>
             <article><span>SUCCESSFUL PERIODS</span><strong>{completed}</strong><small>in the last 12 months</small></article>
@@ -382,7 +404,25 @@ export default function Dashboard() {
           <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"} · Read-only Todoist access</p>
         </> : <div className="empty"><span>✓</span><h1>No habits found yet</h1><p>Add the <code>@habit</code> label to a recurring Todoist task, then sync.</p><button className="button primary" onClick={sync}>Sync Todoist</button></div>}
       </section>
-      {settings && habit && <div className="modal-bg" onMouseDown={() => setSettings(false)}><div className="modal" onMouseDown={(e) => e.stopPropagation()}><button className="close" onClick={() => setSettings(false)}>×</button><div className="eyebrow"><span /> OVERRIDE SCHEDULE</div><h2>What’s the real rhythm?</h2><p>Habit Tracker will use this to judge completions. Nothing changes in Todoist.</p><div className="choices primary-choices"><button className={scheduleIs("todoist") ? "selected" : ""} onClick={() => saveSchedule("todoist")}><i>↻</i><span><strong>Use Todoist schedule</strong><small>{habit.todoist_recurrence || "No recurring due date"}</small></span><b>✓</b></button><button className={scheduleIs("daily") ? "selected" : ""} onClick={() => saveSchedule("daily")}><i>1d</i><span><strong>Every day</strong><small>One completion each day</small></span><b>✓</b></button><button className={scheduleIs("interval", 2) ? "selected" : ""} onClick={() => saveSchedule("interval", 2)}><i>2d</i><span><strong>Every two days</strong><small>One completion per two-day period</small></span><b>✓</b></button></div><div className="weekly-heading"><strong>Times per week</strong><small>Any days, Monday–Sunday</small></div><div className="weekly-choices">{[1, 2, 3, 4, 5, 6, 7].map((count) => <button className={scheduleIs("weekly", count) ? "selected" : ""} key={count} onClick={() => saveSchedule("weekly", count)}><strong>{count}</strong><small>×</small></button>)}</div></div></div>}
+      {settings && habit && <div className="modal-bg" onMouseDown={() => setSettings(false)}><div className="modal settings-modal" onMouseDown={(e) => e.stopPropagation()}>
+        <button className="close" aria-label="Close settings" onClick={() => setSettings(false)}>×</button>
+        <div className="eyebrow"><span /> HABIT SETTINGS</div>
+        <h2>Make it yours</h2>
+        <p>Customize how this habit appears and how completions are measured. Nothing changes in Todoist.</p>
+        <section className="settings-section label-setting">
+          <div className="settings-heading"><strong>Label</strong><small>Todoist name: {habit.content}</small></div>
+          <div className="label-control">
+            <input aria-label="Habit label" maxLength={80} value={labelOverride} placeholder={habit.content} onChange={(event) => { setLabelOverride(event.target.value); setLabelSaved(false); }} />
+            <button className="button primary compact" onClick={saveLabel}>Save label</button>
+          </div>
+          <small>{labelSaved ? "Saved" : labelOverride ? "Used throughout Habit Tracker" : "Leave empty to use the Todoist name"}</small>
+        </section>
+        <section className="settings-section rhythm-setting">
+          <div className="settings-heading"><strong>Rhythm</strong><small>How often this habit should count</small></div>
+          <div className="choices primary-choices"><button className={scheduleIs("todoist") ? "selected" : ""} onClick={() => saveSchedule("todoist")}><i>↻</i><span><strong>Use Todoist schedule</strong><small>{habit.todoist_recurrence || "No recurring due date"}</small></span><b>✓</b></button><button className={scheduleIs("daily") ? "selected" : ""} onClick={() => saveSchedule("daily")}><i>1d</i><span><strong>Every day</strong><small>One completion each day</small></span><b>✓</b></button><button className={scheduleIs("interval", 2) ? "selected" : ""} onClick={() => saveSchedule("interval", 2)}><i>2d</i><span><strong>Every two days</strong><small>One completion per two-day period</small></span><b>✓</b></button></div>
+          <div className="weekly-heading"><strong>Times per week</strong><small>Any days, Monday–Sunday</small></div><div className="weekly-choices">{[1, 2, 3, 4, 5, 6, 7].map((count) => <button className={scheduleIs("weekly", count) ? "selected" : ""} key={count} onClick={() => saveSchedule("weekly", count)}><strong>{count}</strong><small>×</small></button>)}</div>
+        </section>
+      </div></div>}
     </main>
   );
 }
