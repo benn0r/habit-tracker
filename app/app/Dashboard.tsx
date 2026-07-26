@@ -101,6 +101,7 @@ export default function Dashboard() {
   const [labelOverride, setLabelOverride] = useState("");
   const [trackingStartDate, setTrackingStartDate] = useState("");
   const [toast, setToast] = useState<{ message: string; id: number } | null>(null);
+  const [periodTooltip, setPeriodTooltip] = useState<{ title: string; detail: string; x: number; y: number } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [view, setView] = useState<View>("heatmap");
   const [range, setRange] = useState<Range>("90d");
@@ -301,6 +302,16 @@ export default function Dashboard() {
     await load(); setSettings(false); showToast("Rhythm saved");
   }
   const showToast = (message: string) => setToast({ message, id: Date.now() });
+  const showPeriodTooltip = (label: string, target: HTMLElement) => {
+    const [title, ...detail] = label.split(": ");
+    const bounds = target.getBoundingClientRect();
+    setPeriodTooltip({
+      title,
+      detail: detail.join(": "),
+      x: Math.max(110, Math.min(window.innerWidth - 110, bounds.left + bounds.width / 2)),
+      y: bounds.top,
+    });
+  };
   const openSettings = () => {
     if (!habit) return;
     setLabelOverride(habit.label_override || "");
@@ -402,7 +413,7 @@ export default function Dashboard() {
                   <polyline points={summary.trend.map((value, index) => `${summary.trend.length === 1 ? 50 : index * 100 / (summary.trend.length - 1)},${28 - value * .26}`).join(" ")} />
                 </svg>
               </div>
-              <div className="summary-recent">{summary.periods.map((period, index) => <i key={period.key} className={summary.tones[index]} title={period.label} />)}</div>
+              <div className="summary-recent">{summary.periods.map((period, index) => <i key={period.key} className={summary.tones[index]} aria-label={period.label} onMouseEnter={(event) => showPeriodTooltip(period.label, event.currentTarget)} onMouseLeave={() => setPeriodTooltip(null)} />)}</div>
               <div className="summary-foot"><span>{summary.hits} targets met</span><span>{summary.streak} {summary.unit} streak</span><strong>View habit →</strong></div>
             </button>)}
           </div>
@@ -434,7 +445,7 @@ export default function Dashboard() {
             {view === "heatmap" && <div className="heatmap-layout">
               {rhythm.type === "daily" && <div className="calendar-labels">{["Mon", "", "Wed", "", "Fri", "", ""].map((label, index) => <span key={index}>{label}</span>)}</div>}
               <div className={`heatmap-scroll ${rhythm.type}`}>
-                <div className={`year-grid ${rhythm.type}`}>{periods.map((period, index) => <i key={period.key} className={period.state === "before_start" ? "before-start" : tones[index]} title={period.label}>{rhythm.type === "weekly" ? period.completed : null}</i>)}</div>
+                <div className={`year-grid ${rhythm.type}`}>{periods.map((period, index) => <i key={period.key} className={period.state === "before_start" ? "before-start" : tones[index]} aria-label={period.label} onMouseEnter={(event) => showPeriodTooltip(period.label, event.currentTarget)} onMouseLeave={() => setPeriodTooltip(null)}>{rhythm.type === "weekly" ? period.completed : null}</i>)}</div>
               </div>
             </div>}
             {view === "trend" && <div className="trend-chart">{monthly.map((month) => <div className="trend-month" key={month.key} title={`${month.hit}/${month.total} targets met`}><strong>{month.score}%</strong><div><i style={{ height: `${Math.max(month.score, 3)}%` }} /></div><span>{month.label}</span></div>)}</div>}
@@ -444,6 +455,7 @@ export default function Dashboard() {
           <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"} · Read-only Todoist access</p>
         </> : <div className="empty"><span>✓</span><h1>No habits found yet</h1><p>Add the <code>@habit</code> label to a recurring Todoist task, then sync.</p><button className="button primary" onClick={sync}>Sync Todoist</button></div>}
       </section>
+      {periodTooltip && <div className="period-tooltip" role="tooltip" style={{ left: periodTooltip.x, top: periodTooltip.y }}><strong>{periodTooltip.title}</strong><small>{periodTooltip.detail}</small></div>}
       {toast && <div className="save-toast" role="status" aria-live="polite"><span>✓</span><div><strong>Saved</strong><small>{toast.message}</small></div></div>}
       {settings && habit && <div className="modal-bg" onMouseDown={() => setSettings(false)}><div className="modal settings-modal" onMouseDown={(e) => e.stopPropagation()}>
         <button className="close" aria-label="Close settings" onClick={() => setSettings(false)}>×</button>
