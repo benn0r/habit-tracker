@@ -90,7 +90,7 @@ jobs:
             "${GITEA_URL}/api/packages/${PACKAGE_OWNER}/generic/habit-tracker-ci/${SOURCE_COMMIT}/test-evidence.tgz"
 
   test-e2e:
-    needs: test
+    needs: build
     runs-on: ubuntu-latest-slim
     container: node:22.13.0-bookworm
     timeout-minutes: 20
@@ -111,19 +111,6 @@ jobs:
             --header "Authorization: token ${REGISTRY_TOKEN}" \
             "${GITEA_URL}/api/packages/${PACKAGE_OWNER}/generic/habit-tracker-ci/${SOURCE_COMMIT}/next-build.tgz"
           tar -xzf /tmp/next-build.tgz
-
-      - name: Download test evidence
-        shell: sh
-        env:
-          GITEA_URL: ${{ gitea.server_url }}
-          PACKAGE_OWNER: ${{ gitea.repository_owner }}
-          SOURCE_COMMIT: ${{ gitea.sha }}
-          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
-        run: |
-          curl --fail --silent --show-error --output /tmp/test-evidence.tgz \
-            --header "Authorization: token ${REGISTRY_TOKEN}" \
-            "${GITEA_URL}/api/packages/${PACKAGE_OWNER}/generic/habit-tracker-ci/${SOURCE_COMMIT}/test-evidence.tgz"
-          tar -xzf /tmp/test-evidence.tgz
 
       - name: Install dependencies
         run: npm ci
@@ -172,13 +159,13 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
         run: |
           mkdir -p playwright-report test-results
-          tar -czf /tmp/e2e-evidence.tgz playwright-report test-results artifacts/test
+          tar -czf /tmp/e2e-evidence.tgz playwright-report test-results
           curl --fail --silent --show-error --upload-file /tmp/e2e-evidence.tgz \
             --header "Authorization: token ${REGISTRY_TOKEN}" \
             "${GITEA_URL}/api/packages/${PACKAGE_OWNER}/generic/habit-tracker-ci/${SOURCE_COMMIT}/e2e-evidence.tgz"
 
   publish-image:
-    needs: test-e2e
+    needs: [test, test-e2e]
     if: gitea.event_name == 'push' && startsWith(gitea.ref, 'refs/heads/')
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -203,6 +190,19 @@ jobs:
             --header "Authorization: token ${REGISTRY_TOKEN}" \
             "${GITEA_URL}/api/packages/${PACKAGE_OWNER}/generic/habit-tracker-ci/${SOURCE_COMMIT}/e2e-evidence.tgz"
           tar -xzf /tmp/e2e-evidence.tgz -C artifacts/verified
+
+      - name: Download test evidence
+        shell: sh
+        env:
+          GITEA_URL: ${{ gitea.server_url }}
+          PACKAGE_OWNER: ${{ gitea.repository_owner }}
+          SOURCE_COMMIT: ${{ gitea.sha }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          curl --fail --silent --show-error --output /tmp/test-evidence.tgz \
+            --header "Authorization: token ${REGISTRY_TOKEN}" \
+            "${GITEA_URL}/api/packages/${PACKAGE_OWNER}/generic/habit-tracker-ci/${SOURCE_COMMIT}/test-evidence.tgz"
+          tar -xzf /tmp/test-evidence.tgz -C artifacts/verified
 
       - name: Verify test evidence
         run: |
