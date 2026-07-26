@@ -119,9 +119,9 @@ Authorization: Bearer YOUR_CRON_SECRET
 
 The Gitea Actions workflow uses four dependent jobs: `build`, `test`,
 `test-e2e`, and `publish-image`. The production Next.js build, audit evidence,
-and Playwright reports are passed between jobs as short-lived artifacts. After
-all checks pass, the publication job performs a fresh Dockerfile build and
-publishes:
+and Playwright reports are passed between jobs as commit-scoped temporary
+packages and removed after publication. After all checks pass, the publication
+job performs a fresh Dockerfile build and publishes:
 
 ```text
 registry.example.com/your-account/habit-tracker

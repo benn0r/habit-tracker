@@ -26,14 +26,17 @@ jobs:
         run: npm run build
 
       - name: Upload application build
-        uses: actions/upload-artifact@v3
-        with:
-          name: next-build
-          path: |
-            .next
-            !.next/cache
-          if-no-files-found: error
-          retention-days: 7
+        shell: sh
+        env:
+          GITEA_URL: ${{ gitea.server_url }}
+          PACKAGE_OWNER: ${{ gitea.repository_owner }}
+          SOURCE_COMMIT: ${{ gitea.sha }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          tar --exclude=.next/cache -czf /tmp/next-build.tgz .next
+          curl --fail --silent --show-error --upload-file /tmp/next-build.tgz \
+            --header "Authorization: token ${REGISTRY_TOKEN}" \
+            "${GITEA_URL}/api/packages/${PACKAGE_OWNER}/generic/habit-tracker-ci/${SOURCE_COMMIT}/next-build.tgz"
 
   test:
     needs: build
@@ -46,10 +49,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download application build
-        uses: actions/download-artifact@v3
-        with:
-          name: next-build
-          path: .next
+        shell: sh
+        env:
+          GITEA_URL: ${{ gitea.server_url }}
+          PACKAGE_OWNER: ${{ gitea.repository_owner }}
+          SOURCE_COMMIT: ${{ gitea.sha }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          curl --fail --silent --show-error --output /tmp/next-build.tgz \
+            --header "Authorization: token ${REGISTRY_TOKEN}" \
+            "${GITEA_URL}/api/packages/${PACKAGE_OWNER}/generic/habit-tracker-ci/${SOURCE_COMMIT}/next-build.tgz"
+          tar -xzf /tmp/next-build.tgz
 
       - name: Install dependencies
         run: npm ci
@@ -67,12 +77,17 @@ jobs:
           cp .next/BUILD_ID artifacts/test/build-id.txt
 
       - name: Upload test evidence
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-evidence
-          path: artifacts/test
-          if-no-files-found: error
-          retention-days: 7
+        shell: sh
+        env:
+          GITEA_URL: ${{ gitea.server_url }}
+          PACKAGE_OWNER: ${{ gitea.repository_owner }}
+          SOURCE_COMMIT: ${{ gitea.sha }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          tar -czf /tmp/test-evidence.tgz artifacts/test
+          curl --fail --silent --show-error --upload-file /tmp/test-evidence.tgz \
+            --header "Authorization: token ${REGISTRY_TOKEN}" \
+            "${GITEA_URL}/api/packages/${PACKAGE_OWNER}/generic/habit-tracker-ci/${SOURCE_COMMIT}/test-evidence.tgz"
 
   test-e2e:
     needs: test
@@ -85,16 +100,30 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download application build
-        uses: actions/download-artifact@v3
-        with:
-          name: next-build
-          path: .next
+        shell: sh
+        env:
+          GITEA_URL: ${{ gitea.server_url }}
+          PACKAGE_OWNER: ${{ gitea.repository_owner }}
+          SOURCE_COMMIT: ${{ gitea.sha }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          curl --fail --silent --show-error --output /tmp/next-build.tgz \
+            --header "Authorization: token ${REGISTRY_TOKEN}" \
+            "${GITEA_URL}/api/packages/${PACKAGE_OWNER}/generic/habit-tracker-ci/${SOURCE_COMMIT}/next-build.tgz"
+          tar -xzf /tmp/next-build.tgz
 
       - name: Download test evidence
-        uses: actions/download-artifact@v3
-        with:
-          name: test-evidence
-          path: artifacts/test
+        shell: sh
+        env:
+          GITEA_URL: ${{ gitea.server_url }}
+          PACKAGE_OWNER: ${{ gitea.repository_owner }}
+          SOURCE_COMMIT: ${{ gitea.sha }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          curl --fail --silent --show-error --output /tmp/test-evidence.tgz \
+            --header "Authorization: token ${REGISTRY_TOKEN}" \
+            "${GITEA_URL}/api/packages/${PACKAGE_OWNER}/generic/habit-tracker-ci/${SOURCE_COMMIT}/test-evidence.tgz"
+          tar -xzf /tmp/test-evidence.tgz
 
       - name: Install dependencies
         run: npm ci
@@ -107,15 +136,17 @@ jobs:
 
       - name: Upload end-to-end evidence
         if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: e2e-evidence
-          path: |
-            playwright-report
-            test-results
-            artifacts/test
-          if-no-files-found: error
-          retention-days: 7
+        shell: sh
+        env:
+          GITEA_URL: ${{ gitea.server_url }}
+          PACKAGE_OWNER: ${{ gitea.repository_owner }}
+          SOURCE_COMMIT: ${{ gitea.sha }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          tar -czf /tmp/e2e-evidence.tgz playwright-report test-results artifacts/test
+          curl --fail --silent --show-error --upload-file /tmp/e2e-evidence.tgz \
+            --header "Authorization: token ${REGISTRY_TOKEN}" \
+            "${GITEA_URL}/api/packages/${PACKAGE_OWNER}/generic/habit-tracker-ci/${SOURCE_COMMIT}/e2e-evidence.tgz"
 
   publish-image:
     needs: test-e2e
@@ -131,10 +162,18 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download end-to-end evidence
-        uses: actions/download-artifact@v3
-        with:
-          name: e2e-evidence
-          path: artifacts/verified
+        shell: sh
+        env:
+          GITEA_URL: ${{ gitea.server_url }}
+          PACKAGE_OWNER: ${{ gitea.repository_owner }}
+          SOURCE_COMMIT: ${{ gitea.sha }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          mkdir -p artifacts/verified
+          curl --fail --silent --show-error --output /tmp/e2e-evidence.tgz \
+            --header "Authorization: token ${REGISTRY_TOKEN}" \
+            "${GITEA_URL}/api/packages/${PACKAGE_OWNER}/generic/habit-tracker-ci/${SOURCE_COMMIT}/e2e-evidence.tgz"
+          tar -xzf /tmp/e2e-evidence.tgz -C artifacts/verified
 
       - name: Verify test evidence
         run: |
@@ -205,3 +244,18 @@ jobs:
                   "${GITEA_URL}/api/v1/packages/${PACKAGE_OWNER}/container/habit-tracker/${version}")"
                 [ "${status}" = "204" ] || [ "${status}" = "404" ]
               done
+
+      - name: Remove temporary CI artifacts
+        if: always()
+        shell: sh
+        env:
+          GITEA_URL: ${{ gitea.server_url }}
+          PACKAGE_OWNER: ${{ gitea.repository_owner }}
+          SOURCE_COMMIT: ${{ gitea.sha }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --request DELETE \
+            --header "Authorization: token ${REGISTRY_TOKEN}" \
+            "${GITEA_URL}/api/packages/${PACKAGE_OWNER}/generic/habit-tracker-ci/${SOURCE_COMMIT}")"
+          [ "${status}" = "204" ] || [ "${status}" = "404" ]
