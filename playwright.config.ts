@@ -31,6 +31,7 @@ export default defineConfig({
       APP_VERSION: "e2etest",
       NEXT_PUBLIC_APP_VERSION: "e2etest",
       SQLITE_PATH: "/tmp/habit-tracker-e2e.db",
+      E2E_TEST_MODE: "1",
     },
   },
 });

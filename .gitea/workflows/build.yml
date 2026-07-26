@@ -127,6 +127,7 @@ jobs:
           export APP_VERSION=e2etest
           export NEXT_PUBLIC_APP_VERSION=e2etest
           export SQLITE_PATH=/tmp/habit-tracker-e2e.db
+          export E2E_TEST_MODE=1
           npm run start:e2e > /tmp/e2e-server.log 2>&1 &
           server_pid=$!
           trap 'kill "${server_pid}" 2>/dev/null || true' EXIT
