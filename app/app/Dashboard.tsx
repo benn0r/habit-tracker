@@ -17,6 +17,7 @@ type Period = {
 type Rhythm = { type: "daily" | "interval" | "weekly"; count: number };
 type View = "heatmap" | "trend" | "history";
 type Range = "30d" | "90d" | "6m" | "ytd" | "12m";
+type SyncResponse = { code?: string; error?: string };
 const ALL_HABITS = "all";
 const RANGE_OPTIONS: { value: Range; label: string; short: string }[] = [
   { value: "30d", label: "Last 30 days", short: "30 days" },
@@ -97,14 +98,24 @@ export default function Dashboard() {
       return current || (requested && (requested === ALL_HABITS || d.habits?.some((h: Habit) => h.task_id === requested)) ? requested : ALL_HABITS);
     });
   });
+  const requestSync = async () => {
+    const response = await fetch("/api/sync", { method: "POST" });
+    const result = await response.json().catch(() => ({})) as SyncResponse;
+    if (response.status === 401 && result.code === "TODOIST_REAUTH_REQUIRED") {
+      window.location.assign("/api/auth/login");
+      return false;
+    }
+    if (!response.ok) throw new Error(result.error || "Sync failed");
+    return true;
+  };
   useEffect(() => {
     const requestedRange = new URLSearchParams(window.location.search).get("range");
     if (RANGE_OPTIONS.some((option) => option.value === requestedRange)) setRange(requestedRange as Range);
     load();
     if (new URLSearchParams(window.location.search).get("sync") !== "1") return;
     setSyncing(true);
-    fetch("/api/sync", { method: "POST" })
-      .then(() => load())
+    requestSync()
+      .then((synced) => { if (synced) return load(); })
       .finally(() => {
         setSyncing(false);
         const url = new URL(window.location.href);
@@ -251,9 +262,11 @@ export default function Dashboard() {
 
   async function sync() {
     setSyncing(true);
-    await fetch("/api/sync", { method: "POST" });
-    await load();
-    setSyncing(false);
+    try {
+      if (await requestSync()) await load();
+    } finally {
+      setSyncing(false);
+    }
   }
   async function saveSchedule(type: string, count?: number) {
     if (!habit) return;

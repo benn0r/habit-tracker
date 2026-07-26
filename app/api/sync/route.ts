@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { paged, todoist } from "@/lib/todoist";
+import { paged, todoist, TodoistError } from "@/lib/todoist";
 
 type Task = {
   id: string; content: string; labels: string[]; project_id: string;
@@ -125,7 +125,15 @@ export async function POST() {
   const userId = await getUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try { return NextResponse.json(await runSync(userId)); }
-  catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Sync failed" }, { status: 500 }); }
+  catch (error) {
+    if (error instanceof TodoistError && error.status === 401) {
+      return NextResponse.json(
+        { error: "Todoist authorization expired", code: "TODOIST_REAUTH_REQUIRED" },
+        { status: 401 }
+      );
+    }
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Sync failed" }, { status: 500 });
+  }
 }
 
 export async function GET(request: Request) {
