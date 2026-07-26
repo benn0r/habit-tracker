@@ -27,6 +27,7 @@ test("customizes and resets a habit label", async ({ context, page }) => {
   });
 
   await page.goto("/app?habit=sport-1");
+  await expect(page.locator("aside .brand-logo")).toHaveAttribute("src", "/icons/favicon-rounded-192.png");
   await page.getByRole("button", { name: "Habit settings" }).click();
   await expect(page.getByRole("heading", { name: "Make it yours" })).toBeVisible();
   await expect(page.getByText("Rhythm", { exact: true })).toBeVisible();

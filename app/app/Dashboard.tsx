@@ -319,7 +319,7 @@ export default function Dashboard() {
     <main className="shell">
       <aside className={menuOpen ? "menu-open" : ""}>
         <div className="side-head">
-          <a className="brand" href="/"><span className="brandmark">H</span> Habit Tracker</a>
+          <a className="brand" href="/"><img className="brand-logo" src="/icons/favicon-rounded-192.png" alt="" width="34" height="34" /> Habit Tracker</a>
           <button className="menu-toggle" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-label="Toggle navigation"><span /><span /><span /></button>
         </div>
         <div className="side-content">
