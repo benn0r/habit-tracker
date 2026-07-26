@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { periodTones, trackedStreak } from "@/lib/habit-status";
 import { periodOverlapsVacation, type Vacation } from "@/lib/vacations";
+import SiteFooter from "@/app/SiteFooter";
 
 type Habit = {
   task_id: string; content: string; todoist_recurrence: string | null;
@@ -455,6 +456,7 @@ export default function Dashboard() {
           </article>
           <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"} · Read-only Todoist access</p>
         </> : <div className="empty"><span>✓</span><h1>No habits found yet</h1><p>Add the <code>@habit</code> label to a recurring Todoist task, then sync.</p><button className="button primary" onClick={sync}>Sync Todoist</button></div>}
+        <SiteFooter />
       </section>
       {periodTooltip && <div className="period-tooltip" role="tooltip" style={{ left: periodTooltip.x, top: periodTooltip.y }}><strong>{periodTooltip.title}</strong><small>{periodTooltip.detail}</small></div>}
       {toast && <div className="save-toast" role="status" aria-live="polite"><span>✓</span><div><strong>Saved</strong><small>{toast.message}</small></div></div>}

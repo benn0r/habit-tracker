@@ -40,6 +40,8 @@ test("adds vacations and configures which habits keep tracking", async ({ contex
 
   await page.goto("/app/vacations");
   await expect(page.getByRole("heading", { name: "Vacations" })).toBeVisible();
+  await expect(page.locator("main.shell > .vacation-content > footer.site-footer")).toBeAttached();
+  await expect(page.locator("body > footer.site-footer")).toHaveCount(0);
   await expect(page.locator("aside")).toBeVisible();
   await expect(page.getByLabel("Vacation start date")).toHaveAttribute("type", "date");
   await expect(page.getByLabel("Track Morning flight during vacations")).not.toBeChecked();

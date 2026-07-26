@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import type { Vacation } from "@/lib/vacations";
+import SiteFooter from "@/app/SiteFooter";
 
 type Habit = { task_id: string; content: string; label_override: string | null; todoist_recurrence: string | null; override_type: string | null; override_count: number | null; track_during_vacations: number };
 type VacationData = { vacations: Vacation[]; habits: Habit[]; user: { name: string; email: string; avatar?: string } };
@@ -91,6 +92,7 @@ export default function Vacations() {
       <section className="vacation-habits"><div className="section-heading"><div><span>HABITS DURING VACATION</span><h2>What should keep counting?</h2></div><p>Everything is paused by default. Turn on only habits you want tracked while away.</p></div>
         <div className="vacation-habit-list">{data?.habits.map((habit) => <label key={habit.task_id}><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{displayLabel(habit)}</strong><small>{habit.track_during_vacations ? "Tracked during vacations" : "Paused during vacations"}</small></span><span className="toggle"><input type="checkbox" aria-label={`Track ${displayLabel(habit)} during vacations`} checked={Boolean(habit.track_during_vacations)} onChange={(event) => setHabitTracking(habit, event.target.checked)} /><span /></span></label>)}</div>
       </section>
+      <SiteFooter />
     </section>
   </main>;
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getUserId } from "@/lib/auth";
+import SiteFooter from "./SiteFooter";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,7 @@ export default async function Home() {
         <div><b>02</b><h3>Set your real rhythm</h3><p>Daily, every two days, or four times a week. Override schedules Todoist can’t express.</p></div>
         <div><b>03</b><h3>See the whole story</h3><p>A year of completions and misses, without streak anxiety or selective memory.</p></div>
       </div>
+      <SiteFooter />
     </main>
   );
 }
