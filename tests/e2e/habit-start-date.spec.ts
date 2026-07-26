@@ -30,11 +30,12 @@ test("greys periods before the habit start date and excludes them from analytics
 
   await page.goto("/app?habit=flight");
 
-  await expect(page.locator(".year-grid i.before-start")).not.toHaveCount(0);
+  await expect(page.locator(".year-grid i.untracked")).not.toHaveCount(0);
   await expect(page.locator(".stats article").filter({ hasText: "CONSISTENCY" }).locator("strong")).toContainText("100%");
   await expect(page.locator(".stats article").filter({ hasText: "MISSED" }).locator("strong")).toHaveText("0");
-  await expect(page.locator(".chart-legend")).toContainText("Before start");
-  await page.locator(".year-grid i.before-start").first().hover();
+  await expect(page.locator(".chart-legend")).toContainText("Untracked");
+  await expect(page.locator(".chart-legend")).not.toContainText("Before start");
+  await page.locator(".year-grid i.untracked").first().hover();
   await expect(page.getByRole("tooltip").locator("strong")).not.toBeEmpty();
   await expect(page.getByRole("tooltip").locator("small")).toHaveText("before tracking started");
 

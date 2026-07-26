@@ -80,8 +80,11 @@ test("shows untracked vacation periods in grey and excludes them from consistenc
   await page.goto("/app?habit=flight");
 
   const recentPeriods = await page.locator(".year-grid i").evaluateAll((periods) => periods.slice(-4).map((period) => period.className));
-  expect(recentPeriods).toEqual(["done", "vacation", "warning", "future"]);
+  expect(recentPeriods).toEqual(["done", "untracked", "warning", "future"]);
   await expect(page.locator(".stats article").filter({ hasText: "CONSISTENCY" }).locator("strong")).toContainText("50%");
   await expect(page.locator(".stats article").filter({ hasText: "MISSED" }).locator("strong")).toHaveText("1");
-  await expect(page.locator(".chart-legend")).toContainText("Vacation");
+  await expect(page.locator(".chart-legend")).toContainText("Untracked");
+  await expect(page.locator(".chart-legend")).not.toContainText("Vacation");
+  await page.locator(".year-grid i.untracked").first().hover();
+  await expect(page.getByRole("tooltip").locator("small")).toHaveText("vacation · not tracked");
 });

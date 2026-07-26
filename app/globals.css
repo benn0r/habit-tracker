@@ -31,7 +31,7 @@ a { color:inherit; text-decoration:none }
 .score { display:flex; align-items:baseline; gap:8px }.score strong { font:normal 42px "DM Serif Display" }.score span { letter-spacing:0; text-transform:none; color:#77817b }
 .heatmap { display:grid; grid-template-columns:repeat(21,1fr); gap:6px }
 .heatmap i,.year-grid i { aspect-ratio:1; border-radius:2px; background:#dedfd8 }
-i.done { background:var(--green) }.heatmap i.soft { background:#8daa99 } i.warning { background:var(--yellow) } i.miss { background:var(--red) } i.vacation,i.before-start { background:#bfc2bd } i.none,i.future { background:#e3e2db }
+i.done { background:var(--green) }.heatmap i.soft { background:#8daa99 } i.warning { background:var(--yellow) } i.miss { background:var(--red) } i.untracked { background:#bfc2bd } i.none,i.future { background:#e3e2db }
 .legend { display:flex; gap:18px; justify-content:flex-end; margin-top:15px; color:#7b827e; font-size:10px }.legend i,.chart-legend i { width:9px; height:9px; display:inline-block; border-radius:2px }
 .feature-row { max-width:1100px; margin:85px auto; padding:0 30px; display:grid; grid-template-columns:repeat(3,1fr); gap:65px }
 .feature-row b { color:var(--red); font:italic 17px "DM Serif Display" }.feature-row h3 { font:normal 23px "DM Serif Display"; margin:12px 0 }.feature-row p { color:#66726c; line-height:1.6; font-size:14px }.feature-row code,.empty code { color:var(--red); background:#eadfd6; padding:2px 5px; border-radius:4px }
@@ -75,7 +75,7 @@ aside { position:sticky; top:0; height:100vh; background:#ece9df; border-right:1
 .year-grid.weekly { display:flex;flex-wrap:wrap;width:100%;max-width:844px }
 .year-grid.weekly i { border-radius:2px;display:grid;place-items:center;color:#fff;font:600 7px "DM Sans";min-width:12px }
 .year-grid.weekly i.future{color:#89908c}
-.year-grid.weekly i.vacation{color:#fff}
+.year-grid.weekly i.untracked{color:#fff}
 .calendar-labels{display:grid;grid-template-rows:repeat(7,12px);gap:4px;flex:0 0 30px;margin:30px 4px 22px 0;color:#999e9a;font-size:8px;line-height:12px}
 .trend-chart{height:220px;width:100%;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:clamp(3px,1vw,12px);align-items:end;padding:28px 4px 24px}.trend-month{text-align:center;min-width:0}.trend-month>strong{display:block;font-size:8px;color:#7d8681;margin-bottom:6px}.trend-month>div{height:135px;border-radius:5px;background:#ecebe4;display:flex;align-items:flex-end;overflow:hidden}.trend-month>div i{display:block;width:100%;background:linear-gradient(#5c8a70,var(--green));border-radius:5px 5px 0 0}.trend-month>span{display:block;margin-top:7px;font-size:9px;color:#7d8681}
 .period-history{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;margin:20px 0}.period-history>div{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid #e7e4db}.period-history>div>i{width:11px;height:11px;border-radius:50%;flex:0 0 auto}.period-history>div>span{flex:1;min-width:0}.period-history strong,.period-history small{display:block}.period-history strong{font-size:11px}.period-history small{font-size:9px;color:#8a918d;margin-top:2px}.period-history b{font-size:9px;color:#78817c}

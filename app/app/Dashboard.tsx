@@ -92,6 +92,7 @@ function buildPeriods(h: Habit, completions: Completion[], vacations: Vacation[]
   }
   return periods;
 }
+const periodClass = (period: Period, tone: string) => period.state === "vacation" || period.state === "before_start" ? "untracked" : tone;
 
 export default function Dashboard() {
   const [data, setData] = useState<Data | null>(null);
@@ -413,7 +414,7 @@ export default function Dashboard() {
                   <polyline points={summary.trend.map((value, index) => `${summary.trend.length === 1 ? 50 : index * 100 / (summary.trend.length - 1)},${28 - value * .26}`).join(" ")} />
                 </svg>
               </div>
-              <div className="summary-recent">{summary.periods.map((period, index) => <i key={period.key} className={summary.tones[index]} aria-label={period.label} onMouseEnter={(event) => showPeriodTooltip(period.label, event.currentTarget)} onMouseLeave={() => setPeriodTooltip(null)} />)}</div>
+              <div className="summary-recent">{summary.periods.map((period, index) => <i key={period.key} className={periodClass(period, summary.tones[index])} aria-label={period.label} onMouseEnter={(event) => showPeriodTooltip(period.label, event.currentTarget)} onMouseLeave={() => setPeriodTooltip(null)} />)}</div>
               <div className="summary-foot"><span>{summary.hits} targets met</span><span>{summary.streak} {summary.unit} streak</span><strong>View habit →</strong></div>
             </button>)}
           </div>
@@ -436,7 +437,7 @@ export default function Dashboard() {
             <div className="detail-analytic-stat"><span>VS PREVIOUS YEAR</span><strong className={detailAnalytics.comparison === null ? "" : detailAnalytics.comparison > 0 ? "positive" : detailAnalytics.comparison < 0 ? "negative" : ""}>{detailAnalytics.comparison === null ? "—" : `${detailAnalytics.comparison > 0 ? "+" : ""}${detailAnalytics.comparison}`}<em>{detailAnalytics.comparison === null ? "" : " pts"}</em></strong><small>{detailAnalytics.previousScore === null ? "No previous data yet" : `${detailAnalytics.previousScore}% in the prior 12 months`}</small></div>
           </article>
           <article className="chart-card">
-            <div className="chart-title"><div><span>LAST 12 MONTHS</span><h2>{view === "heatmap" ? "Your year at a glance" : view === "trend" ? "Monthly consistency" : "Recent check-ins"}</h2></div>{view === "heatmap" && <div className="chart-legend"><i className="done" /> Target met <i className="warning" /> First miss <i className="miss" /> Repeated miss <i className="vacation" /> Vacation <i className="before-start" /> Before start <i className="none" /> Current period</div>}</div>
+            <div className="chart-title"><div><span>LAST 12 MONTHS</span><h2>{view === "heatmap" ? "Your year at a glance" : view === "trend" ? "Monthly consistency" : "Recent check-ins"}</h2></div>{view === "heatmap" && <div className="chart-legend"><i className="done" /> Target met <i className="warning" /> First miss <i className="miss" /> Repeated miss <i className="untracked" /> Untracked <i className="none" /> Current period</div>}</div>
             <div className="view-tabs" role="tablist" aria-label="Habit visualization">
               <button className={view === "heatmap" ? "active" : ""} onClick={() => setView("heatmap")}>Heatmap</button>
               <button className={view === "trend" ? "active" : ""} onClick={() => setView("trend")}>Monthly trend</button>
@@ -445,11 +446,11 @@ export default function Dashboard() {
             {view === "heatmap" && <div className="heatmap-layout">
               {rhythm.type === "daily" && <div className="calendar-labels">{["Mon", "", "Wed", "", "Fri", "", ""].map((label, index) => <span key={index}>{label}</span>)}</div>}
               <div className={`heatmap-scroll ${rhythm.type}`}>
-                <div className={`year-grid ${rhythm.type}`}>{periods.map((period, index) => <i key={period.key} className={period.state === "before_start" ? "before-start" : tones[index]} aria-label={period.label} onMouseEnter={(event) => showPeriodTooltip(period.label, event.currentTarget)} onMouseLeave={() => setPeriodTooltip(null)}>{rhythm.type === "weekly" ? period.completed : null}</i>)}</div>
+                <div className={`year-grid ${rhythm.type}`}>{periods.map((period, index) => <i key={period.key} className={periodClass(period, tones[index])} aria-label={period.label} onMouseEnter={(event) => showPeriodTooltip(period.label, event.currentTarget)} onMouseLeave={() => setPeriodTooltip(null)}>{rhythm.type === "weekly" ? period.completed : null}</i>)}</div>
               </div>
             </div>}
             {view === "trend" && <div className="trend-chart">{monthly.map((month) => <div className="trend-month" key={month.key} title={`${month.hit}/${month.total} targets met`}><strong>{month.score}%</strong><div><i style={{ height: `${Math.max(month.score, 3)}%` }} /></div><span>{month.label}</span></div>)}</div>}
-            {view === "history" && <div className="period-history">{periods.slice(-18).map((period, index) => ({ period, tone: tones[periods.length - Math.min(18, periods.length) + index] })).reverse().map(({ period, tone }) => <div key={period.key}><i className={period.state === "before_start" ? "before-start" : tone} /><span><strong>{period.label.split(":")[0]}</strong><small>{period.state === "before_start" ? "Before tracking started" : period.state === "vacation" ? "Not tracked during vacation" : period.state === "future" ? "Still in progress" : `${period.completed} of ${period.target} completed`}</small></span><b>{period.state === "done" ? "Met" : period.state === "miss" ? tone === "warning" ? "Warning" : "Missed" : period.state === "vacation" ? "Vacation" : period.state === "before_start" ? "Before start" : "Open"}</b></div>)}</div>}
+            {view === "history" && <div className="period-history">{periods.slice(-18).map((period, index) => ({ period, tone: tones[periods.length - Math.min(18, periods.length) + index] })).reverse().map(({ period, tone }) => <div key={period.key}><i className={periodClass(period, tone)} /><span><strong>{period.label.split(":")[0]}</strong><small>{period.state === "before_start" ? "Before tracking started" : period.state === "vacation" ? "Not tracked during vacation" : period.state === "future" ? "Still in progress" : `${period.completed} of ${period.target} completed`}</small></span><b>{period.state === "done" ? "Met" : period.state === "miss" ? tone === "warning" ? "Warning" : "Missed" : period.state === "vacation" ? "Vacation" : period.state === "before_start" ? "Before start" : "Open"}</b></div>)}</div>}
             <div className="insight"><span>✦</span><p><strong>{score >= 80 ? "Strong rhythm." : score >= 55 ? "A rhythm is forming." : "Room to reset."}</strong> You hit your target in {completed} {unit} this year. Misses are information, not failure.</p></div>
           </article>
           <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"} · Read-only Todoist access</p>
