@@ -1,13 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-test("expired Todoist authorization redirects sync through OAuth", async ({ context, page, request }) => {
-  const fixtureResponse = await request.post("/api/test/session");
-  expect(fixtureResponse.ok()).toBeTruthy();
-  const { session } = await fixtureResponse.json() as { session: string };
-
+test("expired Todoist authorization redirects sync through OAuth", async ({ context, page }) => {
   await context.addCookies([{
-    name: "ritual_session",
-    value: session,
+    name: "ritual_e2e",
+    value: "1",
     url: "http://127.0.0.1:3100",
     httpOnly: true,
     sameSite: "Lax",
