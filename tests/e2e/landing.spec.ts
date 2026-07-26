@@ -8,6 +8,8 @@ test("landing page presents the Todoist habit workflow", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Continue with Todoist" })).toHaveAttribute("href", "/api/auth/login");
   await expect(page.locator(".preview .heatmap i")).toHaveCount(63);
   await expect(page.locator(".site-footer")).toContainText("Habit Tracker · build");
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute("href", "/manifest.webmanifest");
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", "/icons/apple-touch-icon.png");
 });
 
 test("landing page does not overflow its viewport", async ({ page }) => {
