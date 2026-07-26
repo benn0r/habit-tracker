@@ -21,6 +21,8 @@ type View = "heatmap" | "trend" | "history";
 type Range = "30d" | "90d" | "6m" | "ytd" | "12m";
 type SyncResponse = { code?: string; error?: string };
 const ALL_HABITS = "all";
+const LAST_APP_VISIT_KEY = "habit-tracker:last-app-visit";
+const AUTO_SYNC_AFTER_MS = 4 * 60 * 60 * 1000;
 const RANGE_OPTIONS: { value: Range; label: string; short: string }[] = [
   { value: "30d", label: "Last 30 days", short: "30 days" },
   { value: "90d", label: "Last 90 days", short: "90 days" },
@@ -115,10 +117,15 @@ export default function Dashboard() {
     return true;
   };
   useEffect(() => {
-    const requestedRange = new URLSearchParams(window.location.search).get("range");
+    const searchParams = new URLSearchParams(window.location.search);
+    const requestedRange = searchParams.get("range");
     if (RANGE_OPTIONS.some((option) => option.value === requestedRange)) setRange(requestedRange as Range);
+    const now = Date.now();
+    const previousVisit = Number(window.localStorage.getItem(LAST_APP_VISIT_KEY));
+    window.localStorage.setItem(LAST_APP_VISIT_KEY, String(now));
+    const autoSync = Number.isFinite(previousVisit) && previousVisit > 0 && now - previousVisit > AUTO_SYNC_AFTER_MS;
     load();
-    if (new URLSearchParams(window.location.search).get("sync") !== "1") return;
+    if (searchParams.get("sync") !== "1" && !autoSync) return;
     setSyncing(true);
     requestSync()
       .then((synced) => { if (synced) return load(); })
@@ -313,7 +320,7 @@ export default function Dashboard() {
     setSelected(taskId);
   };
 
-  if (!data) return <div className="loading"><span className="brandmark">H</span><p>Reading your habits…</p></div>;
+  if (!data) return <div className="loading"><img className="brand-logo" src="/icons/favicon-rounded-192.png" alt="" width="34" height="34" /><p>Reading your habits…</p></div>;
   const initials = data.user.name.split(" ").map((x) => x[0]).join("").slice(0, 2);
   return (
     <main className="shell">
