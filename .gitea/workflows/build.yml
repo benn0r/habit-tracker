@@ -135,6 +135,7 @@ jobs:
         shell: sh
         run: |
           export PORT=3100
+          export HOSTNAME=0.0.0.0
           export APP_URL=http://127.0.0.1:3100
           export APP_VERSION=e2etest
           export NEXT_PUBLIC_APP_VERSION=e2etest
@@ -170,6 +171,7 @@ jobs:
           SOURCE_COMMIT: ${{ gitea.sha }}
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
         run: |
+          mkdir -p playwright-report test-results
           tar -czf /tmp/e2e-evidence.tgz playwright-report test-results artifacts/test
           curl --fail --silent --show-error --upload-file /tmp/e2e-evidence.tgz \
             --header "Authorization: token ${REGISTRY_TOKEN}" \
