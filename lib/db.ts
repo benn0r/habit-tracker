@@ -22,6 +22,7 @@ export function getDb() {
       label_override TEXT,
       override_type TEXT, override_count INTEGER, override_period TEXT,
       track_during_vacations INTEGER NOT NULL DEFAULT 0,
+      tracking_start_date TEXT,
       project_name TEXT, color TEXT DEFAULT '#ff6b57', active INTEGER DEFAULT 1,
       PRIMARY KEY (user_id, task_id)
     );
@@ -54,6 +55,9 @@ export function getDb() {
   }
   if (!habitColumns.some((column) => column.name === "track_during_vacations")) {
     db.exec("ALTER TABLE habits ADD COLUMN track_during_vacations INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!habitColumns.some((column) => column.name === "tracking_start_date")) {
+    db.exec("ALTER TABLE habits ADD COLUMN tracking_start_date TEXT");
   }
   global.habitDb = db;
   return db;

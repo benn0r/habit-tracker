@@ -21,6 +21,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     db.prepare("UPDATE habits SET track_during_vacations=? WHERE user_id=? AND task_id=?")
       .run(update.trackDuringVacations ? 1 : 0, userId, id);
   }
+  if (Object.hasOwn(update, "trackingStartDate")) {
+    db.prepare("UPDATE habits SET tracking_start_date=? WHERE user_id=? AND task_id=?")
+      .run(update.trackingStartDate, userId, id);
+  }
   if (update.schedule) {
     const { type, count, period } = update.schedule;
     db.prepare(

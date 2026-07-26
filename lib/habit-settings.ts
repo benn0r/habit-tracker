@@ -1,9 +1,16 @@
 export const MAX_HABIT_LABEL_LENGTH = 80;
 const SCHEDULE_TYPES = ["todoist", "daily", "interval", "weekly"] as const;
+const validDateString = (value: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() + 1 === month && date.getDate() === day;
+};
 
 export type HabitSettingsUpdate = {
   labelOverride?: string | null;
   trackDuringVacations?: boolean;
+  trackingStartDate?: string | null;
   schedule?: { type: typeof SCHEDULE_TYPES[number]; count: number | null; period: string | null };
 };
 
@@ -26,6 +33,13 @@ export function parseHabitSettings(value: unknown): HabitSettingsUpdate {
     if (typeof body.trackDuringVacations !== "boolean") throw new Error("Vacation tracking must be true or false");
     update.trackDuringVacations = body.trackDuringVacations;
   }
+  if (Object.hasOwn(body, "trackingStartDate")) {
+    if (body.trackingStartDate !== null && body.trackingStartDate !== "") {
+      if (typeof body.trackingStartDate !== "string") throw new Error("Tracking start date must be a date");
+      if (!validDateString(body.trackingStartDate)) throw new Error("Tracking start date must be a valid date");
+      update.trackingStartDate = body.trackingStartDate;
+    } else update.trackingStartDate = null;
+  }
   if (Object.hasOwn(body, "type")) {
     if (typeof body.type !== "string" || !SCHEDULE_TYPES.includes(body.type as typeof SCHEDULE_TYPES[number])) {
       throw new Error("Invalid schedule");
@@ -41,7 +55,7 @@ export function parseHabitSettings(value: unknown): HabitSettingsUpdate {
       period: type === "weekly" ? "week" : type === "interval" ? "days" : null,
     };
   }
-  if (!Object.hasOwn(update, "labelOverride") && !Object.hasOwn(update, "trackDuringVacations") && !update.schedule) {
+  if (!Object.hasOwn(update, "labelOverride") && !Object.hasOwn(update, "trackDuringVacations") && !Object.hasOwn(update, "trackingStartDate") && !update.schedule) {
     throw new Error("No settings supplied");
   }
   return update;

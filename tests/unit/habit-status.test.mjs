@@ -24,5 +24,5 @@ test("an open period does not interrupt an existing failure sequence", () => {
 });
 
 test("vacation periods do not count toward or break a tracked streak", () => {
-  assert.equal(trackedStreak(["miss", "done", "vacation", "done", "future"]), 2);
+  assert.equal(trackedStreak(["miss", "before_start", "done", "vacation", "done", "future"]), 2);
 });

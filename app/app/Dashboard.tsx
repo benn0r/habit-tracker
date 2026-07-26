@@ -9,13 +9,14 @@ type Habit = {
   label_override: string | null;
   override_type: string | null; override_count: number | null; override_period: string | null;
   track_during_vacations: number;
+  tracking_start_date: string | null;
   project_name: string; color: string;
 };
 type Completion = { task_id: string; completed_at: string };
 type Data = { user: { name: string; email: string; avatar?: string; last_sync?: string }; habits: Habit[]; completions: Completion[]; vacations: Vacation[] };
 type Period = {
   date: Date; key: string; label: string;
-  state: "done" | "miss" | "future" | "vacation";
+  state: "done" | "miss" | "future" | "vacation" | "before_start";
   completed: number; target: number;
 };
 type Rhythm = { type: "daily" | "interval" | "weekly"; count: number };
@@ -77,14 +78,15 @@ function buildPeriods(h: Habit, completions: Completion[], vacations: Vacation[]
     const end = new Date(date); end.setDate(end.getDate() + periodDays);
     const completed = completionDates.filter((d) => d >= date && d < end).length;
     const stillOpen = end > today && completed < target;
-    const onUntrackedVacation = !h.track_during_vacations && periodOverlapsVacation(date, end, vacations);
-    const state: Period["state"] = onUntrackedVacation ? "vacation" : completed >= target ? "done" : stillOpen ? "future" : "miss";
+    const beforeTrackingStart = Boolean(h.tracking_start_date) && end <= new Date(`${h.tracking_start_date}T00:00:00`);
+    const onUntrackedVacation = !beforeTrackingStart && !h.track_during_vacations && periodOverlapsVacation(date, end, vacations);
+    const state: Period["state"] = beforeTrackingStart ? "before_start" : onUntrackedVacation ? "vacation" : completed >= target ? "done" : stillOpen ? "future" : "miss";
     const range = periodDays === 1
       ? date.toLocaleDateString(undefined, { dateStyle: "medium" })
       : `${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}–${new Date(end.getTime() - 86400000).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
     periods.push({
       date, key: `${keyOf(date)}-${periodDays}`, state, completed, target,
-      label: `${range}: ${onUntrackedVacation ? "vacation · not tracked" : `${completed}/${target} completed`}`,
+      label: `${range}: ${beforeTrackingStart ? "before tracking started" : onUntrackedVacation ? "vacation · not tracked" : `${completed}/${target} completed`}`,
     });
   }
   return periods;
@@ -97,6 +99,8 @@ export default function Dashboard() {
   const [settings, setSettings] = useState(false);
   const [labelOverride, setLabelOverride] = useState("");
   const [labelSaved, setLabelSaved] = useState(false);
+  const [trackingStartDate, setTrackingStartDate] = useState("");
+  const [startDateSaved, setStartDateSaved] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [view, setView] = useState<View>("heatmap");
   const [range, setRange] = useState<Range>("90d");
@@ -293,6 +297,8 @@ export default function Dashboard() {
     if (!habit) return;
     setLabelOverride(habit.label_override || "");
     setLabelSaved(false);
+    setTrackingStartDate(habit.tracking_start_date || "");
+    setStartDateSaved(false);
     setSettings(true);
   };
   async function saveLabel() {
@@ -314,6 +320,15 @@ export default function Dashboard() {
     });
     if (!response.ok) throw new Error((await response.json()).error || "Could not save vacation tracking");
     await load();
+  }
+  async function saveTrackingStartDate() {
+    if (!habit) return;
+    const response = await fetch(`/api/habits/${encodeURIComponent(habit.task_id)}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trackingStartDate }),
+    });
+    if (!response.ok) throw new Error((await response.json()).error || "Could not save tracking start date");
+    await load(); setStartDateSaved(true);
   }
   const scheduleIs = (type: string, count?: number) =>
     type === "todoist" ? !habit?.override_type :
@@ -403,7 +418,7 @@ export default function Dashboard() {
             <div className="detail-analytic-stat"><span>VS PREVIOUS YEAR</span><strong className={detailAnalytics.comparison === null ? "" : detailAnalytics.comparison > 0 ? "positive" : detailAnalytics.comparison < 0 ? "negative" : ""}>{detailAnalytics.comparison === null ? "—" : `${detailAnalytics.comparison > 0 ? "+" : ""}${detailAnalytics.comparison}`}<em>{detailAnalytics.comparison === null ? "" : " pts"}</em></strong><small>{detailAnalytics.previousScore === null ? "No previous data yet" : `${detailAnalytics.previousScore}% in the prior 12 months`}</small></div>
           </article>
           <article className="chart-card">
-            <div className="chart-title"><div><span>LAST 12 MONTHS</span><h2>{view === "heatmap" ? "Your year at a glance" : view === "trend" ? "Monthly consistency" : "Recent check-ins"}</h2></div>{view === "heatmap" && <div className="chart-legend"><i className="done" /> Target met <i className="warning" /> First miss <i className="miss" /> Repeated miss <i className="vacation" /> Vacation <i className="none" /> Current period</div>}</div>
+            <div className="chart-title"><div><span>LAST 12 MONTHS</span><h2>{view === "heatmap" ? "Your year at a glance" : view === "trend" ? "Monthly consistency" : "Recent check-ins"}</h2></div>{view === "heatmap" && <div className="chart-legend"><i className="done" /> Target met <i className="warning" /> First miss <i className="miss" /> Repeated miss <i className="vacation" /> Vacation <i className="before-start" /> Before start <i className="none" /> Current period</div>}</div>
             <div className="view-tabs" role="tablist" aria-label="Habit visualization">
               <button className={view === "heatmap" ? "active" : ""} onClick={() => setView("heatmap")}>Heatmap</button>
               <button className={view === "trend" ? "active" : ""} onClick={() => setView("trend")}>Monthly trend</button>
@@ -412,11 +427,11 @@ export default function Dashboard() {
             {view === "heatmap" && <div className="heatmap-layout">
               {rhythm.type === "daily" && <div className="calendar-labels">{["Mon", "", "Wed", "", "Fri", "", ""].map((label, index) => <span key={index}>{label}</span>)}</div>}
               <div className={`heatmap-scroll ${rhythm.type}`}>
-                <div className={`year-grid ${rhythm.type}`}>{periods.map((period, index) => <i key={period.key} className={tones[index]} title={period.label}>{rhythm.type === "weekly" ? period.completed : null}</i>)}</div>
+                <div className={`year-grid ${rhythm.type}`}>{periods.map((period, index) => <i key={period.key} className={period.state === "before_start" ? "before-start" : tones[index]} title={period.label}>{rhythm.type === "weekly" ? period.completed : null}</i>)}</div>
               </div>
             </div>}
             {view === "trend" && <div className="trend-chart">{monthly.map((month) => <div className="trend-month" key={month.key} title={`${month.hit}/${month.total} targets met`}><strong>{month.score}%</strong><div><i style={{ height: `${Math.max(month.score, 3)}%` }} /></div><span>{month.label}</span></div>)}</div>}
-            {view === "history" && <div className="period-history">{periods.slice(-18).map((period, index) => ({ period, tone: tones[periods.length - Math.min(18, periods.length) + index] })).reverse().map(({ period, tone }) => <div key={period.key}><i className={tone} /><span><strong>{period.label.split(":")[0]}</strong><small>{period.state === "vacation" ? "Not tracked during vacation" : period.state === "future" ? "Still in progress" : `${period.completed} of ${period.target} completed`}</small></span><b>{period.state === "done" ? "Met" : period.state === "miss" ? tone === "warning" ? "Warning" : "Missed" : period.state === "vacation" ? "Vacation" : "Open"}</b></div>)}</div>}
+            {view === "history" && <div className="period-history">{periods.slice(-18).map((period, index) => ({ period, tone: tones[periods.length - Math.min(18, periods.length) + index] })).reverse().map(({ period, tone }) => <div key={period.key}><i className={period.state === "before_start" ? "before-start" : tone} /><span><strong>{period.label.split(":")[0]}</strong><small>{period.state === "before_start" ? "Before tracking started" : period.state === "vacation" ? "Not tracked during vacation" : period.state === "future" ? "Still in progress" : `${period.completed} of ${period.target} completed`}</small></span><b>{period.state === "done" ? "Met" : period.state === "miss" ? tone === "warning" ? "Warning" : "Missed" : period.state === "vacation" ? "Vacation" : period.state === "before_start" ? "Before start" : "Open"}</b></div>)}</div>}
             <div className="insight"><span>✦</span><p><strong>{score >= 80 ? "Strong rhythm." : score >= 55 ? "A rhythm is forming." : "Room to reset."}</strong> You hit your target in {completed} {unit} this year. Misses are information, not failure.</p></div>
           </article>
           <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"} · Read-only Todoist access</p>
@@ -438,6 +453,11 @@ export default function Dashboard() {
         <section className="settings-section vacation-setting">
           <div><strong>Track during vacations</strong><small>Off by default. Vacation periods are grey and excluded from analytics.</small></div>
           <label className="toggle"><input type="checkbox" aria-label="Track during vacations" checked={Boolean(habit.track_during_vacations)} onChange={(event) => saveVacationTracking(event.target.checked)} /><span /></label>
+        </section>
+        <section className="settings-section start-date-setting">
+          <div className="settings-heading"><strong>Tracking start date</strong><small>Earlier periods are grey and excluded</small></div>
+          <div className="label-control"><input aria-label="Tracking start date" type="date" value={trackingStartDate} onChange={(event) => { setTrackingStartDate(event.target.value); setStartDateSaved(false); }} /><button className="button primary compact" onClick={saveTrackingStartDate}>Save date</button></div>
+          <small>{startDateSaved ? "Saved" : trackingStartDate ? "Only periods from this date count" : "No start date — all history counts"}</small>
         </section>
         <section className="settings-section rhythm-setting">
           <div className="settings-heading"><strong>Rhythm</strong><small>How often this habit should count</small></div>

@@ -29,3 +29,9 @@ test("parses vacation tracking as an explicit boolean", () => {
   assert.deepEqual(parseHabitSettings({ trackDuringVacations: false }), { trackDuringVacations: false });
   assert.throws(() => parseHabitSettings({ trackDuringVacations: "yes" }), /true or false/);
 });
+
+test("parses and clears a tracking start date", () => {
+  assert.deepEqual(parseHabitSettings({ trackingStartDate: "2026-08-10" }), { trackingStartDate: "2026-08-10" });
+  assert.deepEqual(parseHabitSettings({ trackingStartDate: "" }), { trackingStartDate: null });
+  assert.throws(() => parseHabitSettings({ trackingStartDate: "2026-02-30" }), /valid date/);
+});
