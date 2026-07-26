@@ -34,4 +34,9 @@ test("greys periods before the habit start date and excludes them from analytics
   await expect(page.locator(".stats article").filter({ hasText: "CONSISTENCY" }).locator("strong")).toContainText("100%");
   await expect(page.locator(".stats article").filter({ hasText: "MISSED" }).locator("strong")).toHaveText("0");
   await expect(page.locator(".chart-legend")).toContainText("Before start");
+
+  await page.goto("/app?habit=all");
+  const summary = page.locator(".habit-summary-grid>button").filter({ hasText: "Morning flight" });
+  await expect(summary.locator(".summary-metrics").filter({ hasText: "Previous period" })).toContainText("Not trackedBefore tracking started");
+  await expect(summary).not.toContainText("Syncing older history");
 });

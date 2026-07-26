@@ -240,6 +240,8 @@ export default function Dashboard() {
     const hits = itemElapsed.filter((period) => period.state === "done").length;
     const previousHits = previousElapsed.filter((period) => period.state === "done").length;
     const previousScore = previousElapsed.length ? Math.round(previousHits / previousElapsed.length * 100) : null;
+    const trackingStart = item.tracking_start_date ? new Date(`${item.tracking_start_date}T00:00:00`) : null;
+    const previousBeforeStart = previousScore === null && trackingStart !== null && trackingStart >= dashboardCutoff;
     const itemScore = itemElapsed.length ? Math.round(hits / itemElapsed.length * 100) : 0;
     const itemStreak = trackedStreak(itemPeriods.map((period) => period.state));
     const bucketCount = Math.min(8, Math.max(1, itemElapsed.length));
@@ -260,7 +262,7 @@ export default function Dashboard() {
     return {
       habit: item, periods: itemPeriods, tones: periodTones(itemPeriods.map((period) => period.state)),
       hits, total: itemElapsed.length, streak: itemStreak,
-      score: itemScore, previousScore, comparison: previousScore === null ? null : itemScore - previousScore,
+      score: itemScore, previousScore, previousBeforeStart, comparison: previousScore === null ? null : itemScore - previousScore,
       unit: rhythmFor(item).type === "weekly" ? "weeks" : rhythmFor(item).type === "interval" ? `${rhythmFor(item).count}-day periods` : "days",
       trend, trendDelta, direction, stability,
     };
@@ -389,7 +391,7 @@ export default function Dashboard() {
               <div className="summary-head"><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{displayLabel(summary.habit)}</strong><small>{summary.habit.project_name} · {scheduleLabel(summary.habit)}</small></span><b>{summary.score}%</b></div>
               <div className="summary-bar"><i style={{ width: `${summary.score}%` }} /></div>
               <div className="summary-metrics">
-                <div><span>Previous period</span><strong className={summary.comparison === null ? "" : summary.comparison > 0 ? "positive" : summary.comparison < 0 ? "negative" : ""}>{summary.comparison === null ? "No data" : `${summary.comparison > 0 ? "+" : ""}${summary.comparison} pts`}</strong><small>{summary.previousScore === null ? "Syncing older history" : `${summary.previousScore}% previously`}</small></div>
+                <div><span>Previous period</span><strong className={summary.comparison === null ? "" : summary.comparison > 0 ? "positive" : summary.comparison < 0 ? "negative" : ""}>{summary.previousBeforeStart ? "Not tracked" : summary.comparison === null ? "No data" : `${summary.comparison > 0 ? "+" : ""}${summary.comparison} pts`}</strong><small>{summary.previousBeforeStart ? "Before tracking started" : summary.previousScore === null ? "Syncing older history" : `${summary.previousScore}% previously`}</small></div>
                 <div><span>Stability</span><strong>{summary.stability}/100</strong><small>{summary.stability >= 80 ? "Consistent" : summary.stability >= 60 ? "Mixed" : "Volatile"}</small></div>
               </div>
               <div className={`summary-trend ${summary.direction}`}>
