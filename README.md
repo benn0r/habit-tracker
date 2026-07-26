@@ -120,8 +120,9 @@ Authorization: Bearer YOUR_CRON_SECRET
 The Gitea Actions workflow uses four jobs: `build`, parallel `test` and
 `test-e2e` jobs, then `publish-image`. The production Next.js build, audit
 evidence, and Playwright reports are passed between jobs as commit-scoped
-temporary packages and removed after publication. After both test branches
-pass, the publication job performs a fresh Dockerfile build and publishes:
+packages. E2E packages retain the HTML and JUnit reports plus a screenshot from
+every desktop and mobile test. After both test branches pass, the publication
+job performs a fresh Dockerfile build and publishes:
 
 ```text
 registry.example.com/your-account/habit-tracker
