@@ -3,10 +3,11 @@
 import { FormEvent, useEffect, useState } from "react";
 import type { Vacation } from "@/lib/vacations";
 
-type Habit = { task_id: string; content: string; label_override: string | null; track_during_vacations: number };
-type VacationData = { vacations: Vacation[]; habits: Habit[] };
+type Habit = { task_id: string; content: string; label_override: string | null; todoist_recurrence: string | null; override_type: string | null; override_count: number | null; track_during_vacations: number };
+type VacationData = { vacations: Vacation[]; habits: Habit[]; user: { name: string; email: string; avatar?: string } };
 
 const displayLabel = (habit: Habit) => habit.label_override || habit.content;
+const scheduleLabel = (habit: Habit) => habit.override_type === "weekly" ? `${habit.override_count}× per week` : habit.override_type === "interval" ? `Every ${habit.override_count} days` : habit.override_type === "daily" ? "Every day" : habit.todoist_recurrence || "No repeat";
 const formatDate = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString(undefined, { dateStyle: "medium" });
 
 export default function Vacations() {
@@ -16,6 +17,8 @@ export default function Vacations() {
   const [endDate, setEndDate] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const load = () => fetch("/api/vacations").then((response) => response.json()).then(setData);
   useEffect(() => { load(); }, []);
 
@@ -50,8 +53,27 @@ export default function Vacations() {
     }));
   }
 
-  return <main className="vacation-page">
-    <nav className="vacation-nav"><a className="brand" href="/app"><img className="brand-logo" src="/icons/favicon-rounded-192.png" alt="" width="34" height="34" /> Habit Tracker</a><a className="button ghost compact" href="/app">← Dashboard</a></nav>
+  async function sync() {
+    setSyncing(true);
+    try { await fetch("/api/sync", { method: "POST" }); await load(); }
+    finally { setSyncing(false); }
+  }
+
+  const initials = data?.user?.name.split(" ").map((part) => part[0]).join("").slice(0, 2) || "";
+  return <main className="shell vacation-shell">
+    <aside className={menuOpen ? "menu-open" : ""}>
+      <div className="side-head"><a className="brand" href="/app"><img className="brand-logo" src="/icons/favicon-rounded-192.png" alt="" width="34" height="34" /> Habit Tracker</a><button className="menu-toggle" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-label="Toggle navigation"><span /><span /><span /></button></div>
+      <div className="side-content">
+        <div className="side-label">YOUR HABITS</div>
+        <div className="habit-nav">
+          <a className="side-habit-link" href="/app"><span className="habit-icon overview-icon">▦</span><span><strong>All habits</strong><small>Dashboard overview</small></span></a>
+          {data?.habits.map((habit) => <a className="side-habit-link" key={habit.task_id} href={`/app?habit=${encodeURIComponent(habit.task_id)}`}><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{displayLabel(habit)}</strong><small>{scheduleLabel(habit)}</small></span></a>)}
+        </div>
+        <a className="vacations-link active" href="/app/vacations"><span>☀</span><span><strong>Vacations</strong><small>Plan tracking breaks</small></span></a>
+        <button className="sync" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span> {syncing ? "Syncing…" : "Sync Todoist"}</button>
+        {data?.user && <div className="profile"><div className="avatar">{data.user.avatar ? <img src={data.user.avatar} alt="" /> : initials}</div><span><strong>{data.user.name}</strong><small>{data.user.email}</small></span><form action="/api/auth/logout" method="post"><button title="Log out">↗</button></form></div>}
+      </div>
+    </aside>
     <section className="vacation-content">
       <header><div className="eyebrow"><span /> TRACKING BREAKS</div><h1>Vacations</h1><p>Add time away and choose the habits that should keep counting.</p></header>
       <div className="vacation-layout">

@@ -23,7 +23,8 @@ test("adds vacations and configures which habits keep tracking", async ({ contex
     }
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
       vacations,
-      habits: [{ task_id: "flight", content: "Morning flight", label_override: null, track_during_vacations: tracksVacation }],
+      user: { name: "Fantasy Athlete", email: "athlete@example.test" },
+      habits: [{ task_id: "flight", content: "Morning flight", label_override: null, todoist_recurrence: "every day", override_type: null, override_count: null, track_during_vacations: tracksVacation }],
     }) });
   });
   await page.route("**/api/vacations/*", (route) => {
@@ -39,6 +40,8 @@ test("adds vacations and configures which habits keep tracking", async ({ contex
 
   await page.goto("/app/vacations");
   await expect(page.getByRole("heading", { name: "Vacations" })).toBeVisible();
+  await expect(page.locator("aside")).toBeVisible();
+  await expect(page.getByLabel("Vacation start date")).toHaveAttribute("type", "date");
   await expect(page.getByLabel("Track Morning flight during vacations")).not.toBeChecked();
 
   await page.getByLabel("Vacation title").fill("Summer at Dragon Cove");
