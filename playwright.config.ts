@@ -20,7 +20,7 @@ export default defineConfig({
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
     { name: "mobile-chromium", use: { ...devices["Pixel 7"] } },
   ],
-  webServer: {
+  webServer: process.env.PLAYWRIGHT_EXTERNAL_SERVER ? undefined : {
     command: "npm run start:e2e",
     url: `http://127.0.0.1:${port}/api/health`,
     reuseExistingServer: false,
