@@ -98,9 +98,8 @@ export default function Dashboard() {
   const [syncing, setSyncing] = useState(false);
   const [settings, setSettings] = useState(false);
   const [labelOverride, setLabelOverride] = useState("");
-  const [labelSaved, setLabelSaved] = useState(false);
   const [trackingStartDate, setTrackingStartDate] = useState("");
-  const [startDateSaved, setStartDateSaved] = useState(false);
+  const [toast, setToast] = useState<{ message: string; id: number } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [view, setView] = useState<View>("heatmap");
   const [range, setRange] = useState<Range>("90d");
@@ -166,6 +165,11 @@ export default function Dashboard() {
     url.searchParams.set("range", range);
     window.history.replaceState({}, "", url);
   }, [range, isOverview]);
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = window.setTimeout(() => setToast(null), 3200);
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
   const periods = useMemo(() => habit && data ? buildPeriods(habit, data.completions, data.vacations || []) : [], [habit, data]);
   const tones = useMemo(() => periodTones(periods.map((period) => period.state)), [periods]);
   const rhythm = habit ? rhythmFor(habit) : { type: "daily" as const, count: 1 };
@@ -291,14 +295,13 @@ export default function Dashboard() {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, count, period: type === "weekly" ? "week" : "days" }),
     });
-    await load(); setSettings(false);
+    await load(); setSettings(false); showToast("Rhythm saved");
   }
+  const showToast = (message: string) => setToast({ message, id: Date.now() });
   const openSettings = () => {
     if (!habit) return;
     setLabelOverride(habit.label_override || "");
-    setLabelSaved(false);
     setTrackingStartDate(habit.tracking_start_date || "");
-    setStartDateSaved(false);
     setSettings(true);
   };
   async function saveLabel() {
@@ -310,7 +313,7 @@ export default function Dashboard() {
     if (!response.ok) throw new Error((await response.json()).error || "Could not save label");
     await load();
     setLabelOverride(labelOverride.trim());
-    setLabelSaved(true);
+    showToast("Label saved");
   }
   async function saveVacationTracking(trackDuringVacations: boolean) {
     if (!habit) return;
@@ -320,6 +323,7 @@ export default function Dashboard() {
     });
     if (!response.ok) throw new Error((await response.json()).error || "Could not save vacation tracking");
     await load();
+    showToast("Vacation tracking saved");
   }
   async function saveTrackingStartDate() {
     if (!habit) return;
@@ -328,7 +332,7 @@ export default function Dashboard() {
       body: JSON.stringify({ trackingStartDate }),
     });
     if (!response.ok) throw new Error((await response.json()).error || "Could not save tracking start date");
-    await load(); setStartDateSaved(true);
+    await load(); showToast("Start date saved");
   }
   const scheduleIs = (type: string, count?: number) =>
     type === "todoist" ? !habit?.override_type :
@@ -437,6 +441,7 @@ export default function Dashboard() {
           <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"} · Read-only Todoist access</p>
         </> : <div className="empty"><span>✓</span><h1>No habits found yet</h1><p>Add the <code>@habit</code> label to a recurring Todoist task, then sync.</p><button className="button primary" onClick={sync}>Sync Todoist</button></div>}
       </section>
+      {toast && <div className="save-toast" role="status" aria-live="polite"><span>✓</span><div><strong>Saved</strong><small>{toast.message}</small></div></div>}
       {settings && habit && <div className="modal-bg" onMouseDown={() => setSettings(false)}><div className="modal settings-modal" onMouseDown={(e) => e.stopPropagation()}>
         <button className="close" aria-label="Close settings" onClick={() => setSettings(false)}>×</button>
         <div className="eyebrow"><span /> HABIT SETTINGS</div>
@@ -445,10 +450,10 @@ export default function Dashboard() {
         <section className="settings-section label-setting">
           <div className="settings-heading"><strong>Label</strong><small>Todoist name: {habit.content}</small></div>
           <div className="label-control">
-            <input aria-label="Habit label" maxLength={80} value={labelOverride} placeholder={habit.content} onChange={(event) => { setLabelOverride(event.target.value); setLabelSaved(false); }} />
+            <input aria-label="Habit label" maxLength={80} value={labelOverride} placeholder={habit.content} onChange={(event) => setLabelOverride(event.target.value)} />
             <button className="button primary compact" onClick={saveLabel}>Save label</button>
           </div>
-          <small>{labelSaved ? "Saved" : labelOverride ? "Used throughout Habit Tracker" : "Leave empty to use the Todoist name"}</small>
+          <small>{labelOverride ? "Used throughout Habit Tracker" : "Leave empty to use the Todoist name"}</small>
         </section>
         <section className="settings-section vacation-setting">
           <div><strong>Track during vacations</strong><small>Off by default. Vacation periods are grey and excluded from analytics.</small></div>
@@ -456,8 +461,8 @@ export default function Dashboard() {
         </section>
         <section className="settings-section start-date-setting">
           <div className="settings-heading"><strong>Tracking start date</strong><small>Earlier periods are grey and excluded</small></div>
-          <div className="label-control"><input aria-label="Tracking start date" type="date" value={trackingStartDate} onChange={(event) => { setTrackingStartDate(event.target.value); setStartDateSaved(false); }} /><button className="button primary compact" onClick={saveTrackingStartDate}>Save date</button></div>
-          <small>{startDateSaved ? "Saved" : trackingStartDate ? "Only periods from this date count" : "No start date — all history counts"}</small>
+          <div className="label-control"><input aria-label="Tracking start date" type="date" value={trackingStartDate} onChange={(event) => setTrackingStartDate(event.target.value)} /><button className="button primary compact" onClick={saveTrackingStartDate}>Save date</button></div>
+          <small>{trackingStartDate ? "Only periods from this date count" : "No start date — all history counts"}</small>
         </section>
         <section className="settings-section rhythm-setting">
           <div className="settings-heading"><strong>Rhythm</strong><small>How often this habit should count</small></div>

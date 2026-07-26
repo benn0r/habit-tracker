@@ -39,11 +39,13 @@ test("customizes and resets a habit label", async ({ context, page }) => {
   await expect(page.locator(".weekly-choices")).toHaveCount(0);
   await page.getByLabel("Tracking start date").fill("2026-08-10");
   await page.getByRole("button", { name: "Save date" }).click();
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("SavedStart date saved");
+  await expect(page.locator(".start-date-setting").getByText("Saved", { exact: true })).toHaveCount(0);
 
   await page.getByLabel("Habit label").fill("Training session");
   await page.getByRole("button", { name: "Save label" }).click();
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("SavedLabel saved");
+  await expect(page.locator(".label-setting").getByText("Saved", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Close settings" }).click();
   await expect(page.getByRole("heading", { name: "Training session" })).toBeVisible();
 
