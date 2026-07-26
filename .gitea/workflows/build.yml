@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest-slim
     container: node:22.13.0-bookworm
     timeout-minutes: 15
@@ -22,13 +22,103 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
+      - name: Build application
         run: npm run build
 
+      - name: Upload application build
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-build
+          path: |
+            .next
+            !.next/cache
+          if-no-files-found: error
+          retention-days: 7
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest-slim
+    container: node:22.13.0-bookworm
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download application build
+        uses: actions/download-artifact@v4
+        with:
+          name: next-build
+          path: .next
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm test
+
       - name: Audit production dependencies
-        run: npm audit --omit=dev
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p artifacts/test
+          npm audit --omit=dev | tee artifacts/test/npm-audit.txt
+          test -f .next/BUILD_ID
+          cp .next/BUILD_ID artifacts/test/build-id.txt
+
+      - name: Upload test evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-evidence
+          path: artifacts/test
+          if-no-files-found: error
+          retention-days: 7
+
+  test-e2e:
+    needs: test
+    runs-on: ubuntu-latest-slim
+    container: node:22.13.0-bookworm
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download application build
+        uses: actions/download-artifact@v4
+        with:
+          name: next-build
+          path: .next
+
+      - name: Download test evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: test-evidence
+          path: artifacts/test
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run end-to-end tests
+        run: npm run test:e2e
+
+      - name: Upload end-to-end evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-evidence
+          path: |
+            playwright-report
+            test-results
+            artifacts/test
+          if-no-files-found: error
+          retention-days: 7
 
   publish-image:
+    needs: test-e2e
     if: gitea.event_name == 'push' && startsWith(gitea.ref, 'refs/heads/')
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -39,6 +129,17 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Download end-to-end evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: e2e-evidence
+          path: artifacts/verified
+
+      - name: Verify test evidence
+        run: |
+          test -f artifacts/verified/test-results/e2e.xml
+          test -f artifacts/verified/artifacts/test/npm-audit.txt
 
       - name: Install Docker CLI
         shell: sh

@@ -45,6 +45,22 @@ http://localhost:3000/api/auth/callback
 
 Then open <http://localhost:3000>.
 
+## Tests
+
+Run the type check and production build with:
+
+```sh
+npm test
+npm run build
+```
+
+Install Chromium once, then run the desktop and mobile end-to-end suite:
+
+```sh
+npx playwright install chromium
+npm run test:e2e
+```
+
 ## Environment variables
 
 | Variable | Required | Description |
@@ -101,8 +117,11 @@ Authorization: Bearer YOUR_CRON_SECRET
 
 ### Gitea Container Registry
 
-The Gitea Actions workflow installs dependencies, runs the production build,
-audits production dependencies, and publishes:
+The Gitea Actions workflow uses four dependent jobs: `build`, `test`,
+`test-e2e`, and `publish-image`. The production Next.js build, audit evidence,
+and Playwright reports are passed between jobs as short-lived artifacts. After
+all checks pass, the publication job performs a fresh Dockerfile build and
+publishes:
 
 ```text
 registry.example.com/your-account/habit-tracker
