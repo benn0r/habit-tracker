@@ -1,19 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { periodTones } from "@/lib/habit-status";
+import { periodTones, trackedStreak } from "@/lib/habit-status";
+import { periodOverlapsVacation, type Vacation } from "@/lib/vacations";
 
 type Habit = {
   task_id: string; content: string; todoist_recurrence: string | null;
   label_override: string | null;
   override_type: string | null; override_count: number | null; override_period: string | null;
+  track_during_vacations: number;
   project_name: string; color: string;
 };
 type Completion = { task_id: string; completed_at: string };
-type Data = { user: { name: string; email: string; avatar?: string; last_sync?: string }; habits: Habit[]; completions: Completion[] };
+type Data = { user: { name: string; email: string; avatar?: string; last_sync?: string }; habits: Habit[]; completions: Completion[]; vacations: Vacation[] };
 type Period = {
   date: Date; key: string; label: string;
-  state: "done" | "miss" | "future";
+  state: "done" | "miss" | "future" | "vacation";
   completed: number; target: number;
 };
 type Rhythm = { type: "daily" | "interval" | "weekly"; count: number };
@@ -57,7 +59,7 @@ function rhythmFor(h: Habit): Rhythm {
   return { type: "daily", count: 1 };
 }
 
-function buildPeriods(h: Habit, completions: Completion[], months = 12): Period[] {
+function buildPeriods(h: Habit, completions: Completion[], vacations: Vacation[], months = 12): Period[] {
   const today = startOfDay(new Date());
   const start = new Date(today); start.setMonth(start.getMonth() - months); start.setDate(start.getDate() + 1);
   const rhythm = rhythmFor(h);
@@ -75,13 +77,14 @@ function buildPeriods(h: Habit, completions: Completion[], months = 12): Period[
     const end = new Date(date); end.setDate(end.getDate() + periodDays);
     const completed = completionDates.filter((d) => d >= date && d < end).length;
     const stillOpen = end > today && completed < target;
-    const state: Period["state"] = completed >= target ? "done" : stillOpen ? "future" : "miss";
+    const onUntrackedVacation = !h.track_during_vacations && periodOverlapsVacation(date, end, vacations);
+    const state: Period["state"] = onUntrackedVacation ? "vacation" : completed >= target ? "done" : stillOpen ? "future" : "miss";
     const range = periodDays === 1
       ? date.toLocaleDateString(undefined, { dateStyle: "medium" })
       : `${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}–${new Date(end.getTime() - 86400000).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
     periods.push({
       date, key: `${keyOf(date)}-${periodDays}`, state, completed, target,
-      label: `${range}: ${completed}/${target} completed`,
+      label: `${range}: ${onUntrackedVacation ? "vacation · not tracked" : `${completed}/${target} completed`}`,
     });
   }
   return periods;
@@ -159,21 +162,21 @@ export default function Dashboard() {
     url.searchParams.set("range", range);
     window.history.replaceState({}, "", url);
   }, [range, isOverview]);
-  const periods = useMemo(() => habit && data ? buildPeriods(habit, data.completions) : [], [habit, data]);
+  const periods = useMemo(() => habit && data ? buildPeriods(habit, data.completions, data.vacations || []) : [], [habit, data]);
   const tones = useMemo(() => periodTones(periods.map((period) => period.state)), [periods]);
   const rhythm = habit ? rhythmFor(habit) : { type: "daily" as const, count: 1 };
-  const elapsed = periods.filter((d) => d.state !== "future");
+  const elapsed = periods.filter((d) => d.state === "done" || d.state === "miss");
   const completed = elapsed.filter((d) => d.state === "done").length;
   const score = elapsed.length ? Math.round(completed / elapsed.length * 100) : 0;
-  const streak = (() => { let n = 0; for (let i = periods.length - 1; i >= 0; i--) { if (periods[i].state === "future") continue; if (periods[i].state === "done") n++; else break; } return n; })();
+  const streak = trackedStreak(periods.map((period) => period.state));
   const unit = rhythm.type === "weekly" ? "weeks" : rhythm.type === "interval" ? `${rhythm.count}-day periods` : "days";
   const detailAnalytics = useMemo(() => {
     if (!habit || !data) return { trend: [0], direction: "steady", delta: 0, stability: 100, previousScore: null as number | null, comparison: null as number | null };
     const cutoff = startOfDay(new Date()); cutoff.setFullYear(cutoff.getFullYear() - 1); cutoff.setDate(cutoff.getDate() + 1);
     const previousCutoff = new Date(cutoff); previousCutoff.setFullYear(previousCutoff.getFullYear() - 1);
-    const all = buildPeriods(habit, data.completions, 24);
-    const current = all.filter((period) => period.date >= cutoff && period.state !== "future");
-    const previous = all.filter((period) => period.date >= previousCutoff && period.date < cutoff && period.state !== "future");
+    const all = buildPeriods(habit, data.completions, data.vacations || [], 24);
+    const current = all.filter((period) => period.date >= cutoff && (period.state === "done" || period.state === "miss"));
+    const previous = all.filter((period) => period.date >= previousCutoff && period.date < cutoff && (period.state === "done" || period.state === "miss"));
     const bucketCount = Math.min(10, Math.max(1, current.length));
     const trend = Array.from({ length: bucketCount }, (_, index) => {
       const start = Math.floor(index * current.length / bucketCount);
@@ -222,20 +225,15 @@ export default function Dashboard() {
     if (range === "6m") previousCutoff.setMonth(previousCutoff.getMonth() - 6);
     if (range === "ytd") previousCutoff.setDate(previousCutoff.getDate() - (Math.floor((today.getTime() - dashboardCutoff.getTime()) / 86400000) + 1));
     if (range === "12m") previousCutoff.setFullYear(previousCutoff.getFullYear() - 1);
-    const allPeriods = buildPeriods(item, data.completions, 24);
+    const allPeriods = buildPeriods(item, data.completions, data.vacations || [], 24);
     const itemPeriods = allPeriods.filter((period) => period.date >= dashboardCutoff);
-    const itemElapsed = itemPeriods.filter((period) => period.state !== "future");
-    const previousElapsed = allPeriods.filter((period) => period.date >= previousCutoff && period.date < dashboardCutoff && period.state !== "future");
+    const itemElapsed = itemPeriods.filter((period) => period.state === "done" || period.state === "miss");
+    const previousElapsed = allPeriods.filter((period) => period.date >= previousCutoff && period.date < dashboardCutoff && (period.state === "done" || period.state === "miss"));
     const hits = itemElapsed.filter((period) => period.state === "done").length;
     const previousHits = previousElapsed.filter((period) => period.state === "done").length;
     const previousScore = previousElapsed.length ? Math.round(previousHits / previousElapsed.length * 100) : null;
     const itemScore = itemElapsed.length ? Math.round(hits / itemElapsed.length * 100) : 0;
-    let itemStreak = 0;
-    for (let index = itemPeriods.length - 1; index >= 0; index--) {
-      if (itemPeriods[index].state === "future") continue;
-      if (itemPeriods[index].state === "done") itemStreak++;
-      else break;
-    }
+    const itemStreak = trackedStreak(itemPeriods.map((period) => period.state));
     const bucketCount = Math.min(8, Math.max(1, itemElapsed.length));
     const trend = Array.from({ length: bucketCount }, (_, index) => {
       const start = Math.floor(index * itemElapsed.length / bucketCount);
@@ -262,7 +260,7 @@ export default function Dashboard() {
   const overviewHits = summaries.reduce((sum, item) => sum + item.hits, 0);
   const overviewTotal = summaries.reduce((sum, item) => sum + item.total, 0);
   const overviewScore = overviewTotal ? Math.round(overviewHits / overviewTotal * 100) : 0;
-  const needsAttention = summaries.filter((item) => item.score < 60).length;
+  const needsAttention = summaries.filter((item) => item.total > 0 && item.score < 60).length;
   const portfolioTrend = Array.from({ length: 8 }, (_, index) => {
     if (!summaries.length) return 0;
     return Math.round(summaries.reduce((sum, summary) => {
@@ -308,6 +306,15 @@ export default function Dashboard() {
     setLabelOverride(labelOverride.trim());
     setLabelSaved(true);
   }
+  async function saveVacationTracking(trackDuringVacations: boolean) {
+    if (!habit) return;
+    const response = await fetch(`/api/habits/${encodeURIComponent(habit.task_id)}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trackDuringVacations }),
+    });
+    if (!response.ok) throw new Error((await response.json()).error || "Could not save vacation tracking");
+    await load();
+  }
   const scheduleIs = (type: string, count?: number) =>
     type === "todoist" ? !habit?.override_type :
     habit?.override_type === type && (count === undefined || habit.override_count === count);
@@ -335,6 +342,7 @@ export default function Dashboard() {
             <button className={`overview-link ${isOverview ? "active" : ""}`} onClick={() => selectHabit(ALL_HABITS)}><span className="habit-icon overview-icon">▦</span><span><strong>All habits</strong><small>Dashboard overview</small></span></button>
             {data.habits.map((h) => <button key={h.task_id} className={selected === h.task_id ? "active" : ""} onClick={() => selectHabit(h.task_id)}><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{displayLabel(h)}</strong><small>{scheduleLabel(h)}</small></span></button>)}
           </div>
+          <a className="vacations-link" href="/app/vacations"><span>☀</span><span><strong>Vacations</strong><small>Plan tracking breaks</small></span></a>
           <button className="sync" onClick={sync} disabled={syncing}><span className={syncing ? "spin" : ""}>↻</span> {syncing ? "Syncing…" : "Sync Todoist"}</button>
           <div className="profile"><div className="avatar">{data.user.avatar ? <img src={data.user.avatar} alt="" /> : initials}</div><span><strong>{data.user.name}</strong><small>{data.user.email}</small></span><form action="/api/auth/logout" method="post"><button title="Log out">↗</button></form></div>
         </div>
@@ -395,7 +403,7 @@ export default function Dashboard() {
             <div className="detail-analytic-stat"><span>VS PREVIOUS YEAR</span><strong className={detailAnalytics.comparison === null ? "" : detailAnalytics.comparison > 0 ? "positive" : detailAnalytics.comparison < 0 ? "negative" : ""}>{detailAnalytics.comparison === null ? "—" : `${detailAnalytics.comparison > 0 ? "+" : ""}${detailAnalytics.comparison}`}<em>{detailAnalytics.comparison === null ? "" : " pts"}</em></strong><small>{detailAnalytics.previousScore === null ? "No previous data yet" : `${detailAnalytics.previousScore}% in the prior 12 months`}</small></div>
           </article>
           <article className="chart-card">
-            <div className="chart-title"><div><span>LAST 12 MONTHS</span><h2>{view === "heatmap" ? "Your year at a glance" : view === "trend" ? "Monthly consistency" : "Recent check-ins"}</h2></div>{view === "heatmap" && <div className="chart-legend"><i className="done" /> Target met <i className="warning" /> First miss <i className="miss" /> Repeated miss <i className="none" /> Current period</div>}</div>
+            <div className="chart-title"><div><span>LAST 12 MONTHS</span><h2>{view === "heatmap" ? "Your year at a glance" : view === "trend" ? "Monthly consistency" : "Recent check-ins"}</h2></div>{view === "heatmap" && <div className="chart-legend"><i className="done" /> Target met <i className="warning" /> First miss <i className="miss" /> Repeated miss <i className="vacation" /> Vacation <i className="none" /> Current period</div>}</div>
             <div className="view-tabs" role="tablist" aria-label="Habit visualization">
               <button className={view === "heatmap" ? "active" : ""} onClick={() => setView("heatmap")}>Heatmap</button>
               <button className={view === "trend" ? "active" : ""} onClick={() => setView("trend")}>Monthly trend</button>
@@ -408,7 +416,7 @@ export default function Dashboard() {
               </div>
             </div>}
             {view === "trend" && <div className="trend-chart">{monthly.map((month) => <div className="trend-month" key={month.key} title={`${month.hit}/${month.total} targets met`}><strong>{month.score}%</strong><div><i style={{ height: `${Math.max(month.score, 3)}%` }} /></div><span>{month.label}</span></div>)}</div>}
-            {view === "history" && <div className="period-history">{periods.slice(-18).map((period, index) => ({ period, tone: tones[periods.length - Math.min(18, periods.length) + index] })).reverse().map(({ period, tone }) => <div key={period.key}><i className={tone} /><span><strong>{period.label.split(":")[0]}</strong><small>{period.state === "future" ? "Still in progress" : `${period.completed} of ${period.target} completed`}</small></span><b>{period.state === "done" ? "Met" : period.state === "miss" ? tone === "warning" ? "Warning" : "Missed" : "Open"}</b></div>)}</div>}
+            {view === "history" && <div className="period-history">{periods.slice(-18).map((period, index) => ({ period, tone: tones[periods.length - Math.min(18, periods.length) + index] })).reverse().map(({ period, tone }) => <div key={period.key}><i className={tone} /><span><strong>{period.label.split(":")[0]}</strong><small>{period.state === "vacation" ? "Not tracked during vacation" : period.state === "future" ? "Still in progress" : `${period.completed} of ${period.target} completed`}</small></span><b>{period.state === "done" ? "Met" : period.state === "miss" ? tone === "warning" ? "Warning" : "Missed" : period.state === "vacation" ? "Vacation" : "Open"}</b></div>)}</div>}
             <div className="insight"><span>✦</span><p><strong>{score >= 80 ? "Strong rhythm." : score >= 55 ? "A rhythm is forming." : "Room to reset."}</strong> You hit your target in {completed} {unit} this year. Misses are information, not failure.</p></div>
           </article>
           <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"} · Read-only Todoist access</p>
@@ -426,6 +434,10 @@ export default function Dashboard() {
             <button className="button primary compact" onClick={saveLabel}>Save label</button>
           </div>
           <small>{labelSaved ? "Saved" : labelOverride ? "Used throughout Habit Tracker" : "Leave empty to use the Todoist name"}</small>
+        </section>
+        <section className="settings-section vacation-setting">
+          <div><strong>Track during vacations</strong><small>Off by default. Vacation periods are grey and excluded from analytics.</small></div>
+          <label className="toggle"><input type="checkbox" aria-label="Track during vacations" checked={Boolean(habit.track_during_vacations)} onChange={(event) => saveVacationTracking(event.target.checked)} /><span /></label>
         </section>
         <section className="settings-section rhythm-setting">
           <div className="settings-heading"><strong>Rhythm</strong><small>How often this habit should count</small></div>

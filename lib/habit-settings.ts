@@ -3,6 +3,7 @@ const SCHEDULE_TYPES = ["todoist", "daily", "interval", "weekly"] as const;
 
 export type HabitSettingsUpdate = {
   labelOverride?: string | null;
+  trackDuringVacations?: boolean;
   schedule?: { type: typeof SCHEDULE_TYPES[number]; count: number | null; period: string | null };
 };
 
@@ -21,6 +22,10 @@ export function parseHabitSettings(value: unknown): HabitSettingsUpdate {
   const update: HabitSettingsUpdate = {};
 
   if (Object.hasOwn(body, "label")) update.labelOverride = normalizeHabitLabel(body.label);
+  if (Object.hasOwn(body, "trackDuringVacations")) {
+    if (typeof body.trackDuringVacations !== "boolean") throw new Error("Vacation tracking must be true or false");
+    update.trackDuringVacations = body.trackDuringVacations;
+  }
   if (Object.hasOwn(body, "type")) {
     if (typeof body.type !== "string" || !SCHEDULE_TYPES.includes(body.type as typeof SCHEDULE_TYPES[number])) {
       throw new Error("Invalid schedule");
@@ -36,6 +41,8 @@ export function parseHabitSettings(value: unknown): HabitSettingsUpdate {
       period: type === "weekly" ? "week" : type === "interval" ? "days" : null,
     };
   }
-  if (!Object.hasOwn(update, "labelOverride") && !update.schedule) throw new Error("No settings supplied");
+  if (!Object.hasOwn(update, "labelOverride") && !Object.hasOwn(update, "trackDuringVacations") && !update.schedule) {
+    throw new Error("No settings supplied");
+  }
   return update;
 }

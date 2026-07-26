@@ -23,3 +23,9 @@ test("validates weekly rhythm settings", () => {
   assert.throws(() => parseHabitSettings({ type: "weekly", count: 8 }), /between 1 and 7/);
   assert.throws(() => parseHabitSettings({}), /No settings supplied/);
 });
+
+test("parses vacation tracking as an explicit boolean", () => {
+  assert.deepEqual(parseHabitSettings({ trackDuringVacations: true }), { trackDuringVacations: true });
+  assert.deepEqual(parseHabitSettings({ trackDuringVacations: false }), { trackDuringVacations: false });
+  assert.throws(() => parseHabitSettings({ trackDuringVacations: "yes" }), /true or false/);
+});

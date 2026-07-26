@@ -14,6 +14,9 @@ number of completions per week.
   <img src="docs/screenshots/habit-tracker-mobile.jpg" alt="Habit Tracker on an iPhone-sized screen" width="390">
 </p>
 
+The screenshots show the real application UI with deterministic fantasy data;
+no personal or production data is included.
+
 ## Features
 
 - Todoist OAuth with read-only `data:read` access
@@ -21,6 +24,7 @@ number of completions per week.
 - Exact 90-day all-habits summary dashboard
 - Twelve-month detail views with heatmap, monthly trend, and recent history tabs
 - Daily, interval, and one-to-seven-times-per-week rhythm overrides
+- Vacation date ranges with per-habit opt-in tracking and excluded analytics periods
 - Completion history imported from Todoist activity
 - Persistent users, sessions, habits, overrides, and completions in SQLite
 - Mobile navigation and recurrence-aware responsive visualizations
@@ -59,6 +63,13 @@ Install Chromium once, then run the desktop and mobile end-to-end suite:
 ```sh
 npx playwright install chromium
 npm run test:e2e
+```
+
+Refresh the README screenshots from the fantasy-data fixture after building:
+
+```sh
+npm run build
+UPDATE_README_SCREENSHOTS=1 npm run test:e2e -- tests/e2e/readme-screenshots.spec.ts
 ```
 
 ## Environment variables

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { periodTones } from "../../lib/habit-status.ts";
+import { periodTones, trackedStreak } from "../../lib/habit-status.ts";
 
 test("shows the first failed period as a warning and repeated failures as misses", () => {
   assert.deepEqual(
@@ -21,4 +21,8 @@ test("an open period does not interrupt an existing failure sequence", () => {
     periodTones(["miss", "future", "miss"]),
     ["warning", "future", "miss"],
   );
+});
+
+test("vacation periods do not count toward or break a tracked streak", () => {
+  assert.equal(trackedStreak(["miss", "done", "vacation", "done", "future"]), 2);
 });
