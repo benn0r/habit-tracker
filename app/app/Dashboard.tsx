@@ -46,6 +46,9 @@ function scheduleLabel(h: Habit) {
   if (h.override_type === "daily") return "Every day";
   return h.todoist_recurrence || "No repeat";
 }
+const habitContextLabel = (habit: Habit) => habit.project_name.trim().toLowerCase() === "inbox"
+  ? scheduleLabel(habit)
+  : `${habit.project_name} · ${scheduleLabel(habit)}`;
 
 const displayLabel = (habit: Habit) => habit.label_override || habit.content;
 
@@ -255,11 +258,6 @@ export default function Dashboard() {
       const bucket = itemElapsed.slice(start, end);
       return bucket.length ? Math.round(bucket.filter((period) => period.state === "done").length / bucket.length * 100) : 0;
     });
-    const edgeSize = Math.min(2, Math.max(1, Math.floor(trend.length / 2)));
-    const early = trend.slice(0, edgeSize).reduce((sum, value) => sum + value, 0) / edgeSize;
-    const recent = trend.slice(-edgeSize).reduce((sum, value) => sum + value, 0) / edgeSize;
-    const trendDelta = Math.round(recent - early);
-    const direction = trendDelta > 5 ? "improving" : trendDelta < -5 ? "declining" : "steady";
     const mean = trend.reduce((sum, value) => sum + value, 0) / trend.length;
     const deviation = Math.sqrt(trend.reduce((sum, value) => sum + (value - mean) ** 2, 0) / trend.length);
     const stability = Math.max(0, Math.round(100 - deviation));
@@ -268,7 +266,7 @@ export default function Dashboard() {
       hits, total: itemElapsed.length, streak: itemStreak,
       score: itemScore, previousScore, previousBeforeStart, comparison: previousScore === null ? null : itemScore - previousScore,
       unit: rhythmFor(item).type === "weekly" ? "weeks" : rhythmFor(item).type === "interval" ? `${rhythmFor(item).count}-day periods` : "days",
-      trend, trendDelta, direction, stability,
+      trend, stability,
     };
   }) || [], [data, range]);
   const overviewHits = summaries.reduce((sum, item) => sum + item.hits, 0);
@@ -402,26 +400,19 @@ export default function Dashboard() {
           </article>
           <div className="habit-summary-grid">
             {summaries.map((summary) => <button key={summary.habit.task_id} onClick={() => selectHabit(summary.habit.task_id)}>
-              <div className="summary-head"><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{displayLabel(summary.habit)}</strong><small>{summary.habit.project_name} · {scheduleLabel(summary.habit)}</small></span><b>{summary.score}%</b></div>
+              <div className="summary-head"><span className="habit-icon habit-dot" aria-hidden="true" /><span><strong>{displayLabel(summary.habit)}</strong><small>{habitContextLabel(summary.habit)}</small></span><b>{summary.score}%</b></div>
               <div className="summary-bar"><i style={{ width: `${summary.score}%` }} /></div>
               <div className="summary-metrics">
                 <div><span>Previous period</span><strong className={summary.comparison === null ? "" : summary.comparison > 0 ? "positive" : summary.comparison < 0 ? "negative" : ""}>{summary.previousBeforeStart ? "Not tracked" : summary.comparison === null ? "No data" : `${summary.comparison > 0 ? "+" : ""}${summary.comparison} pts`}</strong><small>{summary.previousBeforeStart ? "Before tracking started" : summary.previousScore === null ? "Syncing older history" : `${summary.previousScore}% previously`}</small></div>
                 <div><span>Stability</span><strong>{summary.stability}/100</strong><small>{summary.stability >= 80 ? "Consistent" : summary.stability >= 60 ? "Mixed" : "Volatile"}</small></div>
               </div>
-              <div className={`summary-trend ${summary.direction}`}>
-                <div><span>Trend</span><strong>{summary.direction === "improving" ? "↗ Improving" : summary.direction === "declining" ? "↘ Declining" : "→ Steady"}</strong></div>
-                <svg viewBox="0 0 100 30" preserveAspectRatio="none" role="img" aria-label={`${summary.direction} trend, ${summary.trendDelta > 0 ? "+" : ""}${summary.trendDelta} percentage points`}>
-                  <path className="trend-guide" d="M0 15H100" />
-                  <polyline points={summary.trend.map((value, index) => `${summary.trend.length === 1 ? 50 : index * 100 / (summary.trend.length - 1)},${28 - value * .26}`).join(" ")} />
-                </svg>
-              </div>
               <div className="summary-recent">{summary.periods.map((period, index) => <i key={period.key} className={periodClass(period, summary.tones[index])} aria-label={period.label} onMouseEnter={(event) => showPeriodTooltip(period.label, event.currentTarget)} onMouseLeave={() => setPeriodTooltip(null)} />)}</div>
               <div className="summary-foot"><span>{summary.hits} targets met</span><span>{summary.streak} {summary.unit} streak</span><strong>View habit →</strong></div>
             </button>)}
           </div>
-          <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"} · Read-only Todoist access</p>
+          <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"}</p>
         </> : habit ? <>
-          <header><div><div className="eyebrow"><span /> HABIT OVERVIEW</div><h1>{displayLabel(habit)}</h1><p>{habit.project_name} <b>·</b> {scheduleLabel(habit)}</p></div><button className="button ghost compact adjust-rhythm" onClick={openSettings}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm9 4.2v-1.4l-2.1-.8a7 7 0 0 0-.7-1.7l.9-2-1-1-2 .9a7 7 0 0 0-1.7-.7L13.6 4h-1.4l-.8 2.1a7 7 0 0 0-1.7.7l-2-.9-1 1 .9 2a7 7 0 0 0-.7 1.7l-2.1.8v1.4l2.1.8a7 7 0 0 0 .7 1.7l-.9 2 1 1 2-.9a7 7 0 0 0 1.7.7l.8 2.1h1.4l.8-2.1a7 7 0 0 0 1.7-.7l2 .9 1-1-.9-2a7 7 0 0 0 .7-1.7l2.1-.8Z" /></svg>Habit settings</button></header>
+          <header><div><div className="eyebrow"><span /> HABIT OVERVIEW</div><h1>{displayLabel(habit)}</h1><p>{habitContextLabel(habit)}</p></div><button className="button ghost compact adjust-rhythm" onClick={openSettings}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm9 4.2v-1.4l-2.1-.8a7 7 0 0 0-.7-1.7l.9-2-1-1-2 .9a7 7 0 0 0-1.7-.7L13.6 4h-1.4l-.8 2.1a7 7 0 0 0-1.7.7l-2-.9-1 1 .9 2a7 7 0 0 0-.7 1.7l-2.1.8v1.4l2.1.8a7 7 0 0 0 .7 1.7l-.9 2 1 1 2-.9a7 7 0 0 0 1.7.7l.8 2.1h1.4l.8-2.1a7 7 0 0 0 1.7-.7l2 .9 1-1-.9-2a7 7 0 0 0 .7-1.7l2.1-.8Z" /></svg>Habit settings</button></header>
           <div className="stats">
             <article><span>CONSISTENCY</span><strong>{score}<em>%</em></strong><small>across completed periods</small></article>
             <article><span>SUCCESSFUL PERIODS</span><strong>{completed}</strong><small>in the last 12 months</small></article>
@@ -454,7 +445,7 @@ export default function Dashboard() {
             {view === "history" && <div className="period-history">{periods.slice(-18).map((period, index) => ({ period, tone: tones[periods.length - Math.min(18, periods.length) + index] })).reverse().map(({ period, tone }) => <div key={period.key}><i className={periodClass(period, tone)} /><span><strong>{period.label.split(":")[0]}</strong><small>{period.state === "before_start" ? "Before tracking started" : period.state === "vacation" ? "Not tracked during vacation" : period.state === "future" ? "Still in progress" : `${period.completed} of ${period.target} completed`}</small></span><b>{period.state === "done" ? "Met" : period.state === "miss" ? tone === "warning" ? "Warning" : "Missed" : period.state === "vacation" ? "Vacation" : period.state === "before_start" ? "Before start" : "Open"}</b></div>)}</div>}
             <div className="insight"><span>✦</span><p><strong>{score >= 80 ? "Strong rhythm." : score >= 55 ? "A rhythm is forming." : "Room to reset."}</strong> You hit your target in {completed} {unit} this year. Misses are information, not failure.</p></div>
           </article>
-          <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"} · Read-only Todoist access</p>
+          <p className="last-sync">Last synced {data.user.last_sync ? new Date(data.user.last_sync).toLocaleString() : "never"}</p>
         </> : <div className="empty"><span>✓</span><h1>No habits found yet</h1><p>Add the <code>@habit</code> label to a recurring Todoist task, then sync.</p><button className="button primary" onClick={sync}>Sync Todoist</button></div>}
         <SiteFooter />
       </section>

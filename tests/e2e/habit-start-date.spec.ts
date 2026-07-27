@@ -21,7 +21,7 @@ test("greys periods before the habit start date and excludes them from analytics
         task_id: "flight", content: "Morning flight", label_override: null,
         todoist_recurrence: "every day", override_type: null, override_count: null,
         override_period: null, track_during_vacations: 0, tracking_start_date: dateKey(1),
-        project_name: "Sky Academy", color: "#4f8ac9",
+        project_name: "Inbox", color: "#4f8ac9",
       }],
       completions: [{ task_id: "flight", completed_at: completedAt.toISOString() }],
       vacations: [],
@@ -30,6 +30,9 @@ test("greys periods before the habit start date and excludes them from analytics
 
   await page.goto("/app?habit=flight");
 
+  await expect(page.locator(".dashboard>header p")).toHaveText("every day");
+  await expect(page.getByText("Inbox", { exact: true })).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText("Read-only Todoist access");
   await expect(page.locator(".year-grid i.untracked")).not.toHaveCount(0);
   await expect(page.locator(".stats article").filter({ hasText: "CONSISTENCY" }).locator("strong")).toContainText("100%");
   await expect(page.locator(".stats article").filter({ hasText: "MISSED" }).locator("strong")).toHaveText("0");
@@ -43,6 +46,8 @@ test("greys periods before the habit start date and excludes them from analytics
   const summary = page.locator(".habit-summary-grid>button").filter({ hasText: "Morning flight" });
   await expect(summary.locator(".summary-metrics").filter({ hasText: "Previous period" })).toContainText("Not trackedBefore tracking started");
   await expect(summary).not.toContainText("Syncing older history");
+  await expect(summary.locator(".summary-trend")).toHaveCount(0);
+  await expect(summary).not.toContainText("Inbox");
   await summary.locator(".summary-recent i").first().hover();
   await expect(page.getByRole("tooltip")).toBeVisible();
 });
