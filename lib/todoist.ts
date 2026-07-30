@@ -1,9 +1,12 @@
 const API = "https://api.todoist.com/api/v1";
 
 export class TodoistError extends Error {
-  constructor(public status: number, message: string) {
+  status: number;
+
+  constructor(status: number, message: string) {
     super(message);
     this.name = "TodoistError";
+    this.status = status;
   }
 }
 
@@ -24,9 +27,9 @@ export async function paged<T>(path: string, token: string, collectionKey = "res
   let cursor: string | null = null;
   do {
     const separator = path.includes("?") ? "&" : "?";
-    const data: Record<string, unknown> & { next_cursor?: string } = await todoist<Record<string, unknown> & { next_cursor?: string }>(
-      `${path}${cursor ? `${separator}cursor=${encodeURIComponent(cursor)}` : ""}`, token
-    );
+    const data: Record<string, unknown> & { next_cursor?: string } = await todoist<
+      Record<string, unknown> & { next_cursor?: string }
+    >(`${path}${cursor ? `${separator}cursor=${encodeURIComponent(cursor)}` : ""}`, token);
     const items = data[collectionKey];
     if (!Array.isArray(items)) throw new Error(`Todoist response did not contain "${collectionKey}"`);
     output.push(...(items as T[]));

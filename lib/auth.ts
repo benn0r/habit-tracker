@@ -22,11 +22,14 @@ export async function getUserId() {
   }
   const token = cookieStore.get("ritual_session")?.value;
   if (!token) return null;
-  const session = getDb().prepare(
-    "SELECT user_id FROM sessions WHERE token_hash=? AND expires_at>?"
-  ).get(hash(token), new Date().toISOString()) as { user_id: string } | undefined;
+  const session = getDb()
+    .prepare("SELECT user_id FROM sessions WHERE token_hash=? AND expires_at>?")
+    .get(hash(token), new Date().toISOString()) as { user_id: string } | undefined;
   if (session) return session.user_id;
   // Keep cookies issued by earlier versions valid during the migration.
-  try { return String((await jwtVerify(token, secret())).payload.userId); }
-  catch { return null; }
+  try {
+    return String((await jwtVerify(token, secret())).payload.userId);
+  } catch {
+    return null;
+  }
 }

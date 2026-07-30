@@ -1,12 +1,8 @@
 import { expect, test } from "@playwright/test";
-
-const authenticatedCookie = {
-  name: "ritual_e2e", value: "1", url: "http://127.0.0.1:3100",
-  httpOnly: true, sameSite: "Lax" as const,
-};
+import { authenticate } from "./support";
 
 test("automatically syncs when the previous app visit was more than four hours ago", async ({ context, page }) => {
-  await context.addCookies([authenticatedCookie]);
+  await authenticate(context);
   await page.addInitScript(() => {
     localStorage.setItem("habit-tracker:last-app-visit", String(Date.now() - 4 * 60 * 60 * 1000 - 1));
   });
@@ -23,7 +19,7 @@ test("automatically syncs when the previous app visit was more than four hours a
 });
 
 test("does not automatically sync after a recent app visit", async ({ context, page }) => {
-  await context.addCookies([authenticatedCookie]);
+  await authenticate(context);
   await page.addInitScript(() => {
     localStorage.setItem("habit-tracker:last-app-visit", String(Date.now() - 60 * 60 * 1000));
   });

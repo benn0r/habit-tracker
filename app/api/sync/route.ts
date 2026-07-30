@@ -4,15 +4,24 @@ import { getDb } from "@/lib/db";
 import { paged, todoist, TodoistError } from "@/lib/todoist";
 
 type Task = {
-  id: string; content: string; labels: string[]; project_id: string;
+  id: string;
+  content: string;
+  labels: string[];
+  project_id: string;
   due?: { string?: string; is_recurring?: boolean };
 };
 type Project = { id: string; name: string };
 type Completed = {
-  id?: string; event_id?: string; task_id?: string; content?: string; completed_at: string;
+  id?: string;
+  event_id?: string;
+  task_id?: string;
+  content?: string;
+  completed_at: string;
 };
 type Activity = {
-  id: string; object_id: string; event_date: string;
+  id: string;
+  object_id: string;
+  event_date: string;
   extra_data?: { content?: string };
 };
 
@@ -23,11 +32,13 @@ async function completedForYear(token: string, since: Date, until: Date) {
     const windowEnd = new Date(windowStart);
     windowEnd.setDate(windowEnd.getDate() + 89);
     if (windowEnd > until) windowEnd.setTime(until.getTime());
-    all.push(...await paged<Completed>(
-      `/tasks/completed/by_completion_date?since=${encodeURIComponent(windowStart.toISOString())}&until=${encodeURIComponent(windowEnd.toISOString())}&limit=200`,
-      token,
-      "items"
-    ));
+    all.push(
+      ...(await paged<Completed>(
+        `/tasks/completed/by_completion_date?since=${encodeURIComponent(windowStart.toISOString())}&until=${encodeURIComponent(windowEnd.toISOString())}&limit=200`,
+        token,
+        "items",
+      )),
+    );
     windowStart = windowEnd;
   }
   return all;
@@ -43,13 +54,13 @@ async function activityCompletions(token: string, since: Date) {
       limit: "200",
     });
     if (cursor) query.set("cursor", cursor);
-    const page: { results: Activity[]; next_cursor?: string } = await todoist(
-      `/activities?${query.toString()}`,
-      token
-    );
+    const page: { results: Activity[]; next_cursor?: string } = await todoist(`/activities?${query.toString()}`, token);
     for (const event of page.results || []) {
       const date = new Date(event.event_date);
-      if (date < since) { reachedCutoff = true; continue; }
+      if (date < since) {
+        reachedCutoff = true;
+        continue;
+      }
       output.push({
         event_id: event.id,
         task_id: String(event.object_id),
@@ -64,34 +75,38 @@ async function activityCompletions(token: string, since: Date) {
 
 export async function runSync(userId: string) {
   const db = getDb();
-  const user = db.prepare("SELECT access_token FROM users WHERE id=?").get(userId) as { access_token: string } | undefined;
+  const user = db.prepare("SELECT access_token FROM users WHERE id=?").get(userId) as
+    { access_token: string } | undefined;
   if (!user) throw new Error("User not found");
   const token = user.access_token;
-  const [tasks, projects] = await Promise.all([
-    paged<Task>("/tasks", token),
-    paged<Project>("/projects", token),
-  ]);
+  const [tasks, projects] = await Promise.all([paged<Task>("/tasks", token), paged<Project>("/projects", token)]);
   const projectNames = new Map(projects.map((p) => [p.id, p.name]));
   const habits = tasks.filter((t) => t.labels.some((l) => l.toLowerCase() === "habit"));
 
   const upsertHabit = db.prepare(
-      `INSERT INTO habits(user_id,task_id,content,todoist_recurrence,project_name)
+    `INSERT INTO habits(user_id,task_id,content,todoist_recurrence,project_name)
        VALUES(?,?,?,?,?) ON CONFLICT(user_id,task_id) DO UPDATE SET
        content=excluded.content,todoist_recurrence=excluded.todoist_recurrence,
-       project_name=excluded.project_name,active=1`
+       project_name=excluded.project_name,active=1`,
   );
   const saveHabits = db.transaction((items: Task[]) => {
     db.prepare("UPDATE habits SET active=0 WHERE user_id=?").run(userId);
-    for (const task of items) upsertHabit.run(
-      userId, task.id, task.content,
-      task.due?.is_recurring ? task.due.string || "Recurring" : null,
-      projectNames.get(task.project_id) || "Todoist"
-    );
+    for (const task of items)
+      upsertHabit.run(
+        userId,
+        task.id,
+        task.content,
+        task.due?.is_recurring ? task.due.string || "Recurring" : null,
+        projectNames.get(task.project_id) || "Todoist",
+      );
   });
   saveHabits(habits);
 
-  const since = new Date(); since.setFullYear(since.getFullYear() - 2); since.setDate(since.getDate() - 7);
-  const until = new Date(); until.setDate(until.getDate() + 1);
+  const since = new Date();
+  since.setFullYear(since.getFullYear() - 2);
+  since.setDate(since.getDate() - 7);
+  const until = new Date();
+  until.setDate(until.getDate() + 1);
   let completed: Completed[];
   let completionSource = "activity";
   try {
@@ -104,14 +119,15 @@ export async function runSync(userId: string) {
   habits.forEach((h) => known.set(h.content.trim().toLowerCase(), h.id));
   const insertCompletion = db.prepare(
     `INSERT INTO completions(user_id,task_id,completed_at,completion_id) VALUES(?,?,?,?)
-     ON CONFLICT(user_id,completion_id) DO NOTHING`
+     ON CONFLICT(user_id,completion_id) DO NOTHING`,
   );
   const saveCompletions = db.transaction((items: Completed[]) => {
     db.prepare("DELETE FROM completions WHERE user_id=? AND completed_at>=?").run(userId, since.toISOString());
     for (const item of items) {
-      const taskId = item.task_id
-        || (item.id && habits.some((h) => h.id === item.id) ? item.id : undefined)
-        || (item.content ? known.get(item.content.trim().toLowerCase()) : undefined);
+      const taskId =
+        item.task_id ||
+        (item.id && habits.some((h) => h.id === item.id) ? item.id : undefined) ||
+        (item.content ? known.get(item.content.trim().toLowerCase()) : undefined);
       if (!taskId || !habits.some((h) => h.id === taskId)) continue;
       insertCompletion.run(userId, taskId, item.completed_at, item.event_id || `${taskId}:${item.completed_at}`);
     }
@@ -124,12 +140,13 @@ export async function runSync(userId: string) {
 export async function POST() {
   const userId = await getUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  try { return NextResponse.json(await runSync(userId)); }
-  catch (error) {
+  try {
+    return NextResponse.json(await runSync(userId));
+  } catch (error) {
     if (error instanceof TodoistError && error.status === 401) {
       return NextResponse.json(
         { error: "Todoist authorization expired", code: "TODOIST_REAUTH_REQUIRED" },
-        { status: 401 }
+        { status: 401 },
       );
     }
     return NextResponse.json({ error: error instanceof Error ? error.message : "Sync failed" }, { status: 500 });

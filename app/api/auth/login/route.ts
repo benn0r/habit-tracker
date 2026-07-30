@@ -9,6 +9,11 @@ export async function GET(request: Request) {
   url.searchParams.set("scope", "data:read");
   url.searchParams.set("state", state);
   const response = NextResponse.redirect(url);
-  response.cookies.set("todoist_state", state, { httpOnly: true, secure: origin.startsWith("https"), sameSite: "lax", maxAge: 600 });
+  response.cookies.set("todoist_state", state, {
+    httpOnly: true,
+    secure: origin.startsWith("https"),
+    sameSite: "lax",
+    maxAge: 600,
+  });
   return response;
 }

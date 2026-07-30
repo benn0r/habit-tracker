@@ -8,27 +8,39 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await context.params;
   let update;
-  try { update = parseHabitSettings(await request.json()); }
-  catch (error) {
+  try {
+    update = parseHabitSettings(await request.json());
+  } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid settings" }, { status: 400 });
   }
   const db = getDb();
+  const habit = db.prepare("SELECT 1 FROM habits WHERE user_id=? AND task_id=?").get(userId, id);
+  if (!habit) return NextResponse.json({ error: "Habit not found" }, { status: 404 });
   if (Object.hasOwn(update, "labelOverride")) {
-    db.prepare("UPDATE habits SET label_override=? WHERE user_id=? AND task_id=?")
-      .run(update.labelOverride, userId, id);
+    db.prepare("UPDATE habits SET label_override=? WHERE user_id=? AND task_id=?").run(
+      update.labelOverride,
+      userId,
+      id,
+    );
   }
   if (Object.hasOwn(update, "trackDuringVacations")) {
-    db.prepare("UPDATE habits SET track_during_vacations=? WHERE user_id=? AND task_id=?")
-      .run(update.trackDuringVacations ? 1 : 0, userId, id);
+    db.prepare("UPDATE habits SET track_during_vacations=? WHERE user_id=? AND task_id=?").run(
+      update.trackDuringVacations ? 1 : 0,
+      userId,
+      id,
+    );
   }
   if (Object.hasOwn(update, "trackingStartDate")) {
-    db.prepare("UPDATE habits SET tracking_start_date=? WHERE user_id=? AND task_id=?")
-      .run(update.trackingStartDate, userId, id);
+    db.prepare("UPDATE habits SET tracking_start_date=? WHERE user_id=? AND task_id=?").run(
+      update.trackingStartDate,
+      userId,
+      id,
+    );
   }
   if (update.schedule) {
     const { type, count, period } = update.schedule;
     db.prepare(
-      `UPDATE habits SET override_type=?,override_count=?,override_period=? WHERE user_id=? AND task_id=?`
+      `UPDATE habits SET override_type=?,override_count=?,override_period=? WHERE user_id=? AND task_id=?`,
     ).run(type === "todoist" ? null : type, count, period, userId, id);
   }
   return NextResponse.json({ ok: true });

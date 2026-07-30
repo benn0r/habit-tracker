@@ -24,6 +24,15 @@ test("validates weekly rhythm settings", () => {
   assert.throws(() => parseHabitSettings({}), /No settings supplied/);
 });
 
+test("rejects interval counts that could stall period generation", () => {
+  assert.deepEqual(parseHabitSettings({ type: "interval", count: 2 }), {
+    schedule: { type: "interval", count: 2, period: "days" },
+  });
+  for (const count of [null, 0, 1, -2, 2.5, Number.POSITIVE_INFINITY, 366]) {
+    assert.throws(() => parseHabitSettings({ type: "interval", count }), /between 2 and 365 days/);
+  }
+});
+
 test("parses vacation tracking as an explicit boolean", () => {
   assert.deepEqual(parseHabitSettings({ trackDuringVacations: true }), { trackDuringVacations: true });
   assert.deepEqual(parseHabitSettings({ trackDuringVacations: false }), { trackDuringVacations: false });

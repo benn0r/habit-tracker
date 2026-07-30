@@ -20,18 +20,20 @@ export default defineConfig({
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
     { name: "mobile-chromium", use: { ...devices["Pixel 7"] } },
   ],
-  webServer: process.env.PLAYWRIGHT_EXTERNAL_SERVER ? undefined : {
-    command: "npm run start:e2e",
-    url: `http://127.0.0.1:${port}/api/health`,
-    reuseExistingServer: false,
-    timeout: 120_000,
-    env: {
-      PORT: String(port),
-      APP_URL: `http://127.0.0.1:${port}`,
-      APP_VERSION: "e2etest",
-      NEXT_PUBLIC_APP_VERSION: "e2etest",
-      SQLITE_PATH: "/tmp/habit-tracker-e2e.db",
-      E2E_TEST_MODE: "1",
-    },
-  },
+  webServer: process.env.PLAYWRIGHT_EXTERNAL_SERVER
+    ? undefined
+    : {
+        command: "npm run start:e2e",
+        url: `http://127.0.0.1:${port}/api/health`,
+        reuseExistingServer: false,
+        timeout: 120_000,
+        env: {
+          PORT: String(port),
+          APP_URL: `http://127.0.0.1:${port}`,
+          APP_VERSION: "e2etest",
+          NEXT_PUBLIC_APP_VERSION: "e2etest",
+          SQLITE_PATH: "/tmp/habit-tracker-e2e.db",
+          E2E_TEST_MODE: "1",
+        },
+      },
 });

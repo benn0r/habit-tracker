@@ -1,7 +1,7 @@
 # Habit Tracker
 
 > [!IMPORTANT]
-> **This entire repository—including the application, design, tests, documentation, and deployment setup—was made with AI.**
+> **This entire repository, including the application, design, tests, documentation, and deployment setup was made with AI.**
 
 A Todoist-powered habit dashboard that turns recurring tasks tagged `habit`
 into an honest history of completed and missed periods. Habit Tracker supports
@@ -23,7 +23,7 @@ no personal or production data is included.
 - Automatic discovery of active tasks tagged `habit`
 - Exact 90-day all-habits summary dashboard
 - Twelve-month detail views with heatmap, monthly trend, and recent history tabs
-- Daily, interval, and one-to-seven-times-per-week rhythm overrides
+- Daily, interval, and one-to-six-times-per-week rhythm overrides
 - Vacation date ranges with per-habit opt-in tracking and excluded analytics periods
 - Completion history imported from Todoist activity
 - Persistent users, sessions, habits, overrides, and completions in SQLite
@@ -51,16 +51,18 @@ Then open <http://localhost:3000>.
 
 ## Tests
 
-Run the type check and production build with:
+Run formatting and lint checks before the production build:
 
 ```sh
-npm test
+npm run format:check
+npm run lint
 npm run build
 ```
 
-Install Chromium once, then run the desktop and mobile end-to-end suite:
+Then run unit/type tests and the desktop/mobile end-to-end suite. These two commands can run in parallel after the build:
 
 ```sh
+npm test
 npx playwright install chromium
 npm run test:e2e
 ```
@@ -74,16 +76,16 @@ UPDATE_README_SCREENSHOTS=1 npm run test:e2e -- tests/e2e/readme-screenshots.spe
 
 ## Environment variables
 
-| Variable | Required | Description |
-| --- | --- | --- |
-| `APP_URL` | Production | Public base URL, for example `https://habits.example.com`. |
-| `TODOIST_CLIENT_ID` | Yes | Todoist OAuth application client ID. |
-| `TODOIST_CLIENT_SECRET` | Yes | Todoist OAuth application client secret. |
-| `AUTH_SECRET` | Recommended | Legacy JWT verification secret used during session migration. New sessions are stored in SQLite. |
-| `CRON_SECRET` | Recommended | Bearer token protecting scheduled `GET /api/sync` requests. |
-| `SQLITE_PATH` | No | SQLite file. Defaults to `./data/habit.db` locally and `/data/habit.db` in Docker. |
-| `APP_VERSION` | No | Deployment identifier. The Gitea pipeline supplies the source commit automatically. |
-| `PORT` | No | HTTP port. Defaults to `3000`. |
+| Variable                | Required    | Description                                                                                      |
+| ----------------------- | ----------- | ------------------------------------------------------------------------------------------------ |
+| `APP_URL`               | Production  | Public base URL, for example `https://habits.example.com`.                                       |
+| `TODOIST_CLIENT_ID`     | Yes         | Todoist OAuth application client ID.                                                             |
+| `TODOIST_CLIENT_SECRET` | Yes         | Todoist OAuth application client secret.                                                         |
+| `AUTH_SECRET`           | Recommended | Legacy JWT verification secret used during session migration. New sessions are stored in SQLite. |
+| `CRON_SECRET`           | Recommended | Bearer token protecting scheduled `GET /api/sync` requests.                                      |
+| `SQLITE_PATH`           | No          | SQLite file. Defaults to `./data/habit.db` locally and `/data/habit.db` in Docker.               |
+| `APP_VERSION`           | No          | Deployment identifier. The Gitea pipeline supplies the source commit automatically.              |
+| `PORT`                  | No          | HTTP port. Defaults to `3000`.                                                                   |
 
 ## Docker
 
@@ -117,7 +119,7 @@ survive container replacement.
 The production health response includes the short deployment build:
 
 ```json
-{"status":"ok","version":"8484901"}
+{ "status": "ok", "version": "8484901" }
 ```
 
 For automatic imports, schedule `GET /api/sync` with:

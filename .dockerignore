@@ -1,5 +1,12 @@
 node_modules
 .next
+artifacts
+data
+playwright-report
+test-results
+*.db
+*.db-shm
+*.db-wal
 .git
 .env*
 npm-debug.log*

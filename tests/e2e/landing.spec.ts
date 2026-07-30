@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { authenticate } from "./support";
 
 test("landing page presents the Todoist habit workflow", async ({ page }) => {
   await page.goto("/");
@@ -27,10 +28,7 @@ test("landing page does not overflow its viewport", async ({ page }) => {
 });
 
 test("redirects an authenticated visitor from the home page to the app", async ({ context, page }) => {
-  await context.addCookies([{
-    name: "ritual_e2e", value: "1", url: "http://127.0.0.1:3100",
-    httpOnly: true, sameSite: "Lax",
-  }]);
+  await authenticate(context);
 
   await page.goto("/");
 

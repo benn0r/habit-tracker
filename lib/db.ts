@@ -2,7 +2,9 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "fs";
 import { dirname } from "path";
 
-declare global { var habitDb: Database.Database | undefined; }
+declare global {
+  var habitDb: Database.Database | undefined;
+}
 
 export function getDb() {
   if (global.habitDb) return global.habitDb;

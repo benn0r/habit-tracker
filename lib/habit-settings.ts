@@ -11,7 +11,7 @@ export type HabitSettingsUpdate = {
   labelOverride?: string | null;
   trackDuringVacations?: boolean;
   trackingStartDate?: string | null;
-  schedule?: { type: typeof SCHEDULE_TYPES[number]; count: number | null; period: string | null };
+  schedule?: { type: (typeof SCHEDULE_TYPES)[number]; count: number | null; period: string | null };
 };
 
 export function normalizeHabitLabel(value: unknown) {
@@ -41,13 +41,16 @@ export function parseHabitSettings(value: unknown): HabitSettingsUpdate {
     } else update.trackingStartDate = null;
   }
   if (Object.hasOwn(body, "type")) {
-    if (typeof body.type !== "string" || !SCHEDULE_TYPES.includes(body.type as typeof SCHEDULE_TYPES[number])) {
+    if (typeof body.type !== "string" || !SCHEDULE_TYPES.includes(body.type as (typeof SCHEDULE_TYPES)[number])) {
       throw new Error("Invalid schedule");
     }
-    const type = body.type as typeof SCHEDULE_TYPES[number];
+    const type = body.type as (typeof SCHEDULE_TYPES)[number];
     const count = typeof body.count === "number" ? body.count : null;
     if (type === "weekly" && (!Number.isInteger(count) || count! < 1 || count! > 7)) {
       throw new Error("Weekly target must be between 1 and 7");
+    }
+    if (type === "interval" && (!Number.isInteger(count) || count! < 2 || count! > 365)) {
+      throw new Error("Interval must be between 2 and 365 days");
     }
     update.schedule = {
       type,
@@ -55,7 +58,12 @@ export function parseHabitSettings(value: unknown): HabitSettingsUpdate {
       period: type === "weekly" ? "week" : type === "interval" ? "days" : null,
     };
   }
-  if (!Object.hasOwn(update, "labelOverride") && !Object.hasOwn(update, "trackDuringVacations") && !Object.hasOwn(update, "trackingStartDate") && !update.schedule) {
+  if (
+    !Object.hasOwn(update, "labelOverride") &&
+    !Object.hasOwn(update, "trackDuringVacations") &&
+    !Object.hasOwn(update, "trackingStartDate") &&
+    !update.schedule
+  ) {
     throw new Error("No settings supplied");
   }
   return update;
