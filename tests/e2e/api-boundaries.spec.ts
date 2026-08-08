@@ -7,6 +7,8 @@ test("protected API routes reject anonymous requests", async ({ request }) => {
     request.get("/api/vacations"),
     request.post("/api/vacations", { data: {} }),
     request.patch("/api/habits/flight", { data: {} }),
+    request.post("/api/habits/flight/manual-completions", { data: { date: "2026-08-07" } }),
+    request.delete("/api/habits/flight/manual-completions/1"),
     request.delete("/api/vacations/1"),
     request.post("/api/sync"),
     request.get("/api/sync"),
@@ -52,4 +54,20 @@ test("authenticated APIs reject invalid vacation and rhythm payloads", async ({ 
   const missingHabit = await context.request.patch("/api/habits/not-found", { data: { label: "Training" } });
   expect(missingHabit.status()).toBe(404);
   expect(await missingHabit.json()).toEqual({ error: "Habit not found" });
+
+  const manualEntry = await context.request.post("/api/habits/flight/manual-completions", {
+    data: { date: "2026-02-30" },
+  });
+  expect(manualEntry.status()).toBe(400);
+  expect(await manualEntry.json()).toEqual({ error: "Valid completion date is required" });
+
+  const missingManualHabit = await context.request.post("/api/habits/not-found/manual-completions", {
+    data: { date: "2026-08-07" },
+  });
+  expect(missingManualHabit.status()).toBe(404);
+  expect(await missingManualHabit.json()).toEqual({ error: "Habit not found" });
+
+  const missingManualEntry = await context.request.delete("/api/habits/not-found/manual-completions/999");
+  expect(missingManualEntry.status()).toBe(404);
+  expect(await missingManualEntry.json()).toEqual({ error: "Manual entry not found" });
 });

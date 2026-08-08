@@ -24,6 +24,7 @@ type Data = {
   user: { name: string; email: string; avatar?: string; last_sync?: string };
   habits: Habit[];
   completions: Completion[];
+  manual_completions?: (Completion & { id: number; entry_date: string })[];
   vacations: Vacation[];
 };
 type View = "heatmap" | "trend" | "history";
@@ -71,7 +72,11 @@ export default function Dashboard() {
   const [settings, setSettings] = useState(false);
   const [labelOverride, setLabelOverride] = useState("");
   const [trackingStartDate, setTrackingStartDate] = useState("");
-  const [toast, setToast] = useState<{ message: string; id: number } | null>(null);
+  const [manualDate, setManualDate] = useState("");
+  const [manualSaving, setManualSaving] = useState(false);
+  const [manualDeleting, setManualDeleting] = useState<number | null>(null);
+  const [manualError, setManualError] = useState("");
+  const [toast, setToast] = useState<{ title: string; message: string } | null>(null);
   const [periodTooltip, setPeriodTooltip] = useState<{ title: string; detail: string; x: number; y: number } | null>(
     null,
   );
@@ -146,6 +151,8 @@ export default function Dashboard() {
       );
       setMenuOpen(false);
       setSettings(false);
+      setManualDate("");
+      setManualError("");
     };
     window.addEventListener("popstate", restoreSelection);
     return () => window.removeEventListener("popstate", restoreSelection);
@@ -161,9 +168,17 @@ export default function Dashboard() {
     const timeout = window.setTimeout(() => setToast(null), 3200);
     return () => window.clearTimeout(timeout);
   }, [toast]);
+  const allCompletions = useMemo(() => [...(data?.completions || []), ...(data?.manual_completions || [])], [data]);
+  const manualEntries = useMemo(
+    () =>
+      (data?.manual_completions || [])
+        .filter((entry) => entry.task_id === habit?.task_id)
+        .sort((left, right) => right.entry_date.localeCompare(left.entry_date) || right.id - left.id),
+    [data, habit],
+  );
   const periods = useMemo(
-    () => (habit && data ? buildPeriods(habit, data.completions, data.vacations || []) : []),
-    [habit, data],
+    () => (habit && data ? buildPeriods(habit, allCompletions, data.vacations || []) : []),
+    [habit, data, allCompletions],
   );
   const tones = useMemo(() => periodTones(periods.map((period) => period.state)), [periods]);
   const rhythm = habit ? rhythmFor(habit) : { type: "daily" as const, count: 1 };
@@ -187,7 +202,7 @@ export default function Dashboard() {
     cutoff.setDate(cutoff.getDate() + 1);
     const previousCutoff = new Date(cutoff);
     previousCutoff.setFullYear(previousCutoff.getFullYear() - 1);
-    const all = buildPeriods(habit, data.completions, data.vacations || [], 24);
+    const all = buildPeriods(habit, allCompletions, data.vacations || [], 24);
     const current = all.filter(
       (period) => period.date >= cutoff && (period.state === "done" || period.state === "miss"),
     );
@@ -222,7 +237,7 @@ export default function Dashboard() {
       previousScore,
       comparison: previousScore === null ? null : score - previousScore,
     };
-  }, [habit, data, score]);
+  }, [habit, data, score, allCompletions]);
   const monthly = useMemo(() => {
     const result: { key: string; label: string; hit: number; total: number; score: number }[] = [];
     for (const period of elapsed) {
@@ -263,7 +278,7 @@ export default function Dashboard() {
             previousCutoff.getDate() - (Math.floor((today.getTime() - dashboardCutoff.getTime()) / 86400000) + 1),
           );
         if (range === "12m") previousCutoff.setFullYear(previousCutoff.getFullYear() - 1);
-        const allPeriods = buildPeriods(item, data.completions, data.vacations || [], 24);
+        const allPeriods = buildPeriods(item, allCompletions, data.vacations || [], 24);
         const itemPeriods = allPeriods.filter((period) => period.date >= dashboardCutoff);
         const itemElapsed = itemPeriods.filter((period) => period.state === "done" || period.state === "miss");
         const previousElapsed = allPeriods.filter(
@@ -313,7 +328,7 @@ export default function Dashboard() {
           stability,
         };
       }) || [],
-    [data, range],
+    [data, range, allCompletions],
   );
   const overviewHits = summaries.reduce((sum, item) => sum + item.hits, 0);
   const overviewTotal = summaries.reduce((sum, item) => sum + item.total, 0);
@@ -352,7 +367,7 @@ export default function Dashboard() {
     setSettings(false);
     showToast("Rhythm saved");
   }
-  const showToast = (message: string) => setToast({ message, id: Date.now() });
+  const showToast = (message: string, title = "Saved") => setToast({ title, message });
   const showPeriodTooltip = (label: string, target: HTMLElement) => {
     const [title, ...detail] = label.split(": ");
     const bounds = target.getBoundingClientRect();
@@ -403,6 +418,52 @@ export default function Dashboard() {
     await load();
     showToast("Start date saved");
   }
+  async function addManualCompletion(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!habit) return;
+    if (!manualDate) {
+      setManualError("Choose the date you completed this habit.");
+      return;
+    }
+    setManualSaving(true);
+    setManualError("");
+    try {
+      const response = await fetch(`/api/habits/${encodeURIComponent(habit.task_id)}/manual-completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: manualDate }),
+      });
+      const result = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) throw new Error(result.error || "Could not add the manual entry");
+      await load();
+      setManualDate("");
+      showToast("Manual entry added");
+    } catch (error) {
+      setManualError(error instanceof Error ? error.message : "Could not add the manual entry");
+    } finally {
+      setManualSaving(false);
+    }
+  }
+  async function deleteManualCompletion(entryId: number) {
+    if (!habit) return;
+    setManualDeleting(entryId);
+    setManualError("");
+    try {
+      const response = await fetch(`/api/habits/${encodeURIComponent(habit.task_id)}/manual-completions/${entryId}`, {
+        method: "DELETE",
+      });
+      const result = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) throw new Error(result.error || "Could not delete the manual entry");
+      await load();
+      showToast("Manual entry deleted", "Removed");
+    } catch (error) {
+      setManualError(error instanceof Error ? error.message : "Could not delete the manual entry");
+    } finally {
+      setManualDeleting(null);
+    }
+  }
+  const manualEntryLabel = (entry: (typeof manualEntries)[number]) =>
+    new Date(`${entry.entry_date}T12:00:00`).toLocaleDateString(undefined, { dateStyle: "long" });
   const scheduleIs = (type: string, count?: number) =>
     type === "todoist"
       ? !habit?.override_type
@@ -413,6 +474,8 @@ export default function Dashboard() {
     const url = new URL(window.location.href);
     url.searchParams.set("habit", taskId);
     window.history.pushState({}, "", url);
+    setManualDate("");
+    setManualError("");
     setSelected(taskId);
   };
 
@@ -768,6 +831,64 @@ export default function Dashboard() {
                 </small>
               </div>
             </article>
+            <article className="manual-entry-card" aria-labelledby="manual-entry-title">
+              <div className="manual-entry-copy">
+                <span>MANUAL ENTRIES</span>
+                <h2 id="manual-entry-title">Add a missed check-in</h2>
+                <p>Manual entries count together with Todoist completions and stay untouched when you sync.</p>
+              </div>
+              <form className="manual-entry-form" onSubmit={addManualCompletion}>
+                <label htmlFor="manual-completion-date">Completion date</label>
+                <div>
+                  <input
+                    id="manual-completion-date"
+                    type="date"
+                    value={manualDate}
+                    onChange={(event) => {
+                      setManualDate(event.target.value);
+                      setManualError("");
+                    }}
+                    disabled={manualSaving}
+                  />
+                  <button className="button primary compact" type="submit" disabled={manualSaving}>
+                    {manualSaving ? "Adding…" : "Add entry"}
+                  </button>
+                </div>
+              </form>
+              <div className="manual-entry-list" aria-label="Manual completion history">
+                {manualEntries.length ? (
+                  manualEntries.map((entry) => {
+                    const label = manualEntryLabel(entry);
+                    return (
+                      <div key={entry.id}>
+                        <span className="manual-entry-icon" aria-hidden="true">
+                          ✓
+                        </span>
+                        <span>
+                          <strong>{label}</strong>
+                          <small>Added manually</small>
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`Delete manual entry from ${label}`}
+                          onClick={() => deleteManualCompletion(entry.id)}
+                          disabled={manualDeleting === entry.id}
+                        >
+                          {manualDeleting === entry.id ? "…" : "×"}
+                        </button>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p>No manual entries for this habit yet.</p>
+                )}
+              </div>
+              {manualError && (
+                <p className="form-error" role="alert">
+                  {manualError}
+                </p>
+              )}
+            </article>
             <article className="chart-card">
               <div className="chart-title">
                 <div>
@@ -918,7 +1039,7 @@ export default function Dashboard() {
         <div className="save-toast" role="status" aria-live="polite">
           <span>✓</span>
           <div>
-            <strong>Saved</strong>
+            <strong>{toast.title}</strong>
             <small>{toast.message}</small>
           </div>
         </div>

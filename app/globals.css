@@ -1002,6 +1002,140 @@ aside {
 .detail-analytic-stat strong.negative {
   color: var(--red);
 }
+.manual-entry-card {
+  max-width: 1200px;
+  margin: 0 auto 14px;
+  padding: 22px;
+  background: #fffdf8;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1.1fr);
+  gap: 14px 28px;
+}
+.manual-entry-copy > span {
+  display: block;
+  color: #929893;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+}
+.manual-entry-copy h2 {
+  margin: 5px 0 4px;
+  font: normal 22px "DM Serif Display";
+}
+.manual-entry-copy p {
+  max-width: 500px;
+  margin: 0;
+  color: #7c8580;
+  font-size: 9px;
+  line-height: 1.5;
+}
+.manual-entry-form {
+  align-self: end;
+}
+.manual-entry-form > label {
+  display: block;
+  margin-bottom: 6px;
+  color: #69756e;
+  font-size: 9px;
+  font-weight: 700;
+}
+.manual-entry-form > div {
+  display: flex;
+  gap: 8px;
+}
+.manual-entry-form input {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  padding: 9px 11px;
+  color: var(--ink);
+  font: 11px "DM Sans";
+}
+.manual-entry-form input:focus {
+  outline: 2px solid #b8cbb9;
+  outline-offset: 1px;
+  border-color: var(--green);
+}
+.manual-entry-form button:disabled,
+.manual-entry-list button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+.manual-entry-list {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  padding-left: 28px;
+  border-left: 1px solid var(--line);
+}
+.manual-entry-list > div {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 0;
+  border-bottom: 1px solid #e7e4db;
+}
+.manual-entry-list > div:first-child {
+  padding-top: 0;
+}
+.manual-entry-list > div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.manual-entry-icon {
+  width: 27px;
+  height: 27px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #e1e9df;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 700;
+}
+.manual-entry-list > div > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+.manual-entry-list strong,
+.manual-entry-list small {
+  display: block;
+}
+.manual-entry-list strong {
+  font-size: 10px;
+}
+.manual-entry-list small {
+  margin-top: 2px;
+  color: #8a918d;
+  font-size: 8px;
+}
+.manual-entry-list button {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #8c928e;
+  cursor: pointer;
+  font-size: 18px;
+}
+.manual-entry-list button:hover {
+  background: #f5e7e2;
+  color: var(--red);
+}
+.manual-entry-list > p {
+  margin: 8px 0;
+  color: #8a918d;
+  font-size: 9px;
+}
+.manual-entry-card > .form-error {
+  grid-column: 1;
+  margin: -4px 0 0;
+}
 .chart-card {
   max-width: 1200px;
   margin: auto;
@@ -1937,6 +2071,24 @@ aside {
     padding: 10px 0 0;
     border-left: 0;
     border-top: 1px solid var(--line);
+  }
+  .manual-entry-card {
+    grid-template-columns: 1fr;
+    padding: 18px 16px;
+  }
+  .manual-entry-list {
+    grid-column: 1;
+    grid-row: auto;
+    padding: 16px 0 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+  .manual-entry-card > .form-error {
+    grid-column: 1;
+  }
+  .manual-entry-list button {
+    width: 40px;
+    height: 40px;
   }
 }
 @media (max-width: 800px) {

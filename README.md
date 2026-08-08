@@ -26,7 +26,8 @@ no personal or production data is included.
 - Daily, interval, and one-to-six-times-per-week rhythm overrides
 - Vacation date ranges with per-habit opt-in tracking and excluded analytics periods
 - Completion history imported from Todoist activity
-- Persistent users, sessions, habits, overrides, and completions in SQLite
+- Per-habit manual completion entries that can be added, removed, and combined with Todoist history
+- Persistent users, sessions, habits, overrides, synced completions, and manual entries in SQLite
 - Mobile navigation and recurrence-aware responsive visualizations
 - Deployment build number shown in the application and health response
 - Gitea Actions pipeline publishing a Docker image for Coolify
@@ -150,9 +151,10 @@ The workflow embeds `gitea.sha` into the image as its deployment build number.
 ## Data and privacy
 
 Habit Tracker requests Todoist's read-only `data:read` scope and never modifies
-tasks. Todoist access tokens, application sessions, imported completions, and
-rhythm overrides are stored in the local SQLite database. Protect the persistent
-volume and back it up like any other credential-bearing datastore.
+tasks. Todoist access tokens, application sessions, imported and manual
+completions, and rhythm overrides are stored in the local SQLite database.
+Protect the persistent volume and back it up like any other credential-bearing
+datastore.
 
 Todoist's historical activity availability may depend on the user's Todoist
 plan. Manual sync is available in the application; scheduled sync is protected

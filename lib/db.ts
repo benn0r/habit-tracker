@@ -33,6 +33,14 @@ export function getDb() {
       task_id TEXT NOT NULL, completed_at TEXT NOT NULL,
       completion_id TEXT NOT NULL, PRIMARY KEY (user_id, completion_id)
     );
+    CREATE TABLE IF NOT EXISTS manual_completions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      task_id TEXT NOT NULL,
+      completed_at TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id, task_id) REFERENCES habits(user_id, task_id) ON DELETE CASCADE
+    );
     CREATE TABLE IF NOT EXISTS sessions (
       token_hash TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -48,6 +56,8 @@ export function getDb() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_completions_user_date ON completions(user_id, completed_at);
+    CREATE INDEX IF NOT EXISTS idx_manual_completions_user_task_date
+      ON manual_completions(user_id, task_id, completed_at);
     CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
     CREATE INDEX IF NOT EXISTS idx_vacations_user_dates ON vacations(user_id, start_date, end_date);
   `);

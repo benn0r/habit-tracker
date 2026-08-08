@@ -23,6 +23,7 @@ export async function GET() {
         },
       ],
       completions: [],
+      manual_completions: [],
       vacations: [],
     });
   }
@@ -34,8 +35,14 @@ export async function GET() {
   const completions = db
     .prepare("SELECT task_id,completed_at FROM completions WHERE user_id=? AND completed_at > ? ORDER BY completed_at")
     .all(userId, cutoff.toISOString());
+  const manualCompletions = db
+    .prepare(
+      `SELECT id,task_id,completed_at,substr(completed_at, 1, 10) AS entry_date
+       FROM manual_completions WHERE user_id=? AND completed_at > ? ORDER BY completed_at`,
+    )
+    .all(userId, cutoff.toISOString());
   const vacations = db
     .prepare("SELECT id,title,start_date,end_date FROM vacations WHERE user_id=? ORDER BY start_date")
     .all(userId);
-  return NextResponse.json({ user, habits, completions, vacations });
+  return NextResponse.json({ user, habits, completions, manual_completions: manualCompletions, vacations });
 }

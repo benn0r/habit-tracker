@@ -53,3 +53,25 @@ test("counts vacation periods when tracking during vacations is enabled", () => 
   assert.equal(paused.state, "vacation");
   assert.equal(tracked.state, "miss");
 });
+
+test("counts Todoist and manual completions together without collapsing same-day entries", () => {
+  const weekly = habit({
+    override_type: "weekly",
+    override_count: 2,
+    tracking_start_date: "2026-08-17",
+  });
+  const current = buildPeriods(
+    weekly,
+    [
+      { task_id: "flight", completed_at: "2026-08-18T09:00:00Z" },
+      { task_id: "flight", completed_at: "2026-08-18T12:00:00" },
+    ],
+    [],
+    1,
+    today,
+  ).at(-1);
+
+  assert.equal(current.completed, 2);
+  assert.equal(current.target, 2);
+  assert.equal(current.state, "done");
+});
